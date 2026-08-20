@@ -18,7 +18,7 @@ let hueFactor = 1; //allows for cycling through the color ramps, will be increme
 
 function setup() {
     angleMode(DEGREES);
-    colorMode(HSB);
+    colorMode(HSB, 360, 100, 100); //set color mode to HSB with a range of 0-360 for hue and 0-100 for saturation and brightness
     rectMode(CENTER);
     createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
 
@@ -39,8 +39,8 @@ function setup() {
     rows = ceil(height / spacing); //calculate the number of rows based on the canvas height and spacing
 
     
-    saturationRamp = 5;
-    brightnessRamp = 2;
+    // saturationRamp = 5;
+    //brightnessRamp = 2;
     //print(saturationRamp);
 }
     
@@ -49,18 +49,18 @@ function setup() {
 function draw() {
     background(0);
     stroke(0, 150)
-    if (hueIndex > 98) {
+    if (hueIndex > 360) {
         hueFactor = -1;
-    } else if (hueIndex < 2) {
+    } else if (hueIndex < 1) {
         hueFactor = 1;
     };
-    hueIndex = hueIndex + 0.1 * hueFactor; //allow for cycling with a boomerang effect
-    print(hueFactor);
+    hueIndex = hueIndex + 0.5 * hueFactor; //allow for cycling with a boomerang effect
+    //print(hueFactor);
 
     
     for (let i = 0; i < columns+2; i++) {
         for (let j = 0; j < rows+3; j++) {
-            fill(hueIndex,saturationRamp * i, brightnessRamp * j);
+            fill(hueIndex, 50+i, 50+j);
             let x = x0 + i * spacing; //calculate the x position of the ellipse based on its column index and spacing
             let y = y0 + j * spacing; //calculate the y position of the ellipse based on its row index and spacing
             
