@@ -15,6 +15,8 @@ let y0;
 let size;
 let hueIndex = 0;
 let hueFactor = 1; //allows for cycling through the color ramps, will be incremented in the draw function to create a dynamic effect
+let saturation;
+let brightness;
 
 function setup() {
     angleMode(DEGREES);
@@ -60,7 +62,9 @@ function draw() {
     
     for (let i = 0; i < columns+2; i++) {
         for (let j = 0; j < rows+3; j++) {
-            fill(hueIndex, 50+i, 50+j);
+            let saturation = map(i, 0, columns + 1, 0, 50);
+            let brightness = map(j, 0, rows + 2, 0, 30);
+            fill(hueIndex, saturation, brightness);
             let x = x0 + i * spacing; //calculate the x position of the ellipse based on its column index and spacing
             let y = y0 + j * spacing; //calculate the y position of the ellipse based on its row index and spacing
             
