@@ -34,7 +34,7 @@ function setup() {
 
     x0 = 0 - spacing; //starting x position, allow for half spacing to ensure there is clipping of the ellipses at the edges of the canvas and no visible gaps
     y0 = 0 - spacing; //starting y position, allow for half spacing to ensure there is clipping of the ellipses at the edges of the canvas and no visible gaps
-    size = spacing * 0.9; //size of the ellipses, set to twice the spacing to ensure they overlap and create a continuous pattern    
+    size = spacing * 0.95; //size of the ellipses, set to twice the spacing to ensure they overlap and create a continuous pattern    
 
     columns = ceil(width / spacing); //calculate the number of columns based on the canvas width and spacing
     rows = ceil(height / spacing); //calculate the number of rows based on the canvas height and spacing
@@ -47,7 +47,8 @@ function setup() {
 
 function draw() {
     background(0);
-    stroke(255, 150);
+    stroke(0, 150);
+    //noStroke();
     for (let i = 0; i < columns+2; i++) {
         for (let j = 0; j < rows+3; j++) {
             fill(0 + colourRampSpeed * i + colourRampSpeed * j);
@@ -55,7 +56,7 @@ function draw() {
             let y = y0 + j * spacing; //calculate the y position of the ellipse based on its row index and spacing
             push();
                 translate(x,y)
-                rotate(frameCount * 2); //rotate the square based on its position in the grid to create a dynamic effect
+                rotate(frameCount * 0.05); //rotate the square based on its position in the grid to create a dynamic effect
                 square(0, 0, size);                
             pop();
             
