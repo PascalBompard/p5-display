@@ -19,35 +19,36 @@ let gridObjects = []; //array to hold the grid objects, will be populated in the
 // Classes
 
 class GridObject {
-    constructor(x, y, size, fillColour, strokeColour, strokeAlpha,strokeWeight) {
+    constructor(x, y, size, fillColour) {
         this.x = x; //x position of the object  
         this.y = y; //y position of the object
         this.size = size; //size of the object
         this.fillColour = fillColour; //fill color of the object
-        this.strokeColour = strokeColour; //stroke color of the object
-        this.strokeAlpha = strokeAlpha; //stroke alpha of the object
-        this.strokeWeight = strokeWeight; //stroke weight of the object
     }
     
-    display() {
+    display() { 
         push();
-        fill(this.fillColour);
-        // stroke(this.strokeColour, this.strokeAlpha);
-        // strokeWeight(this.strokeWeight);
-        noStroke(); //disable stroke for the large ellipse
-        ellipse(this.x, this.y, this.size, this.size); //draw ellipse at the specified position with the specified size
+            fill(0, 20);
+            noStroke(); 
+            ellipse(this.x, this.y, this.size*1.1, this.size*1.1); 
         pop();
         push();
-        fill(100); //set fill color to red for the small ellipse
-        noStroke(); //disable stroke for the small ellipse
-        ellipse(this.x, this.y, 50, 50); //draw small ellipse at the specified position
+            fill(-20+this.fillColour,30+(this.fillColour),75+(this.fillColour/1.5));
+            noStroke(); 
+            ellipse(this.x, this.y, this.size, this.size); 
+        pop();
+         push();
+            //fill(0,185,155,100);
+            fill(100+(this.fillColour/20),this.fillColour/50,255-(this.fillColour/2),50+(this.fillColour/100)); 
+            noStroke(); 
+            ellipse(this.x, this.y, this.size/2, this.size/2); 
         pop();
         push();
-        noFill(); //disable fill for the small ellipse
-        stroke(255,0,255,50); //set stroke color to white for the small ellipse
-        strokeWeight(20); //set stroke weight to 2 for the small ellipse
-        ellipse(this.x, this.y, 150, 150); //draw small ellipse at the specified position
+            fill(0, 50);
+            noStroke();
+            ellipse(this.x, this.y, this.size/3.5, this.size/3.5);
         pop();
+       
     }
 }
 
@@ -64,15 +65,10 @@ function setup() {
     // Create a grid of objects with a color gradient based on their position
     for (let i = 0; i < columns+1; i++) {
             for (let j = 0; j < rows+1; j++) {
-                let go_x = x0 + i * spacing; // calculate the x position of the object based on its column index and spacing
-                print("x = " + go_x);
+                let go_x = x0 + i * spacing; // calculate the x position of the object based on its column index and spacing            
                 let go_y = y0 + j * spacing; // calculate the y position of the object based on its row index and spacing
-                print("y = " + go_y);
-                let go_fillColour = colourRampSpeed * i + colourRampSpeed * j; // calculate the fill color of the object based on its position in the grid, creating a gradient effect
-                let goStrokeColour = 0; 
-                let goStrokeAlpha = 100;
-                let goStrokeWeight = 1; 
-                gridObjects.push(new GridObject(go_x, go_y, size, go_fillColour, goStrokeColour, goStrokeAlpha, goStrokeWeight)); 
+                let go_fillColour = colourRampSpeed * (i + j); // calculate the fill color of the object based on its position in the grid, creating a gradient effect
+                gridObjects.push(new GridObject(go_x, go_y, size, go_fillColour)); 
             }
         }
     
