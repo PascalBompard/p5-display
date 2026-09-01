@@ -8,7 +8,7 @@ The `setup` function initializes the canvas and draws the objects in the specifi
 
 let columns; //number of columns in the grid, will be calculated based on the canvas width and spacing
 let rows; //number of rows in the grid, will be calculated based on the canvas height and spacing
-let spacing = 50;; //spacing between the rectangles in the grid, will be set based on the selected size mode
+let spacing = 100; //spacing between the rectangles in the grid, will be set based on the selected size mode
 let x0 = 0; //starting x position, allow for half spacing to ensure there is clipping of the rectangles at the edges of the canvas and no visible gaps
 let y0 = 0;
 let size = spacing; //size of the rectangles, set to twice the spacing to ensure they overlap and create a continuous pattern
@@ -21,13 +21,13 @@ let glyphsPerColumn = 8; //number of glyphs per column in the sprite sheet, used
 // Classes
 
 class GridObject {
-    constructor(x, y, size, fillColour) {
+    constructor(x, y, size) {
         this.x = x; //x position of the object  
         this.y = y; //y position of the object
         this.glyph = random(glyphs); //randomly select a glyph from the glyphs array
-        this.size = size; //size of the object
-        this.fillColour = random(125,255); //fill color of the object
-
+        this.size = size; //size of the grid
+        this.glyphSize = size; //size of the glyph, set to the same size as the grid
+        this.fillColour = random(190,250); //fill color of the object
     }
     
     display() { 
@@ -35,9 +35,9 @@ class GridObject {
         noStroke(); 
         rect(this.x, this.y, this.size, this.size);
         push();
-        translate(this.x, this);
+        translate(this.x);
         imageMode(CENTER);
-        image(this.glyph, this.x + this.size / 2, this.y + this.size / 2, this.size, this.size);        
+        image(this.glyph, this.x + this.size / 2, this.y + this.size / 2, this.glyphSize, this.glyphSize);//         
         pop();
     }
 }
@@ -47,6 +47,8 @@ class GridObject {
 async function setup() {
     createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
     background(255);
+    angleMode(DEGREES); //set the angle mode to radians
+    // frameRate(5); //set the frame rate to 1 frame per second
 
      // waits for asset to load
     sheet = await loadImage("assets/glyphs-v1.png");
@@ -69,12 +71,11 @@ async function setup() {
 
 
     // Create a grid of objects with a color gradient based on their position
-    for (let i = 0; i < rows; i++) {
-            for (let j = 0; j < columns; j++) {
+    for (let i = 0; i < columns; i++) {
+            for (let j = 0; j < rows; j++) {
                 let go_x = x0 + i * spacing; // calculate the x position of the object based on its column index and spacing            
-                let go_y = y0 + j * spacing; // calculate the y position of the object based on its row index and spacing
-                let go_fillColour = 150 + (i*j *10) // calculate the fill color of the object based on its position in the grid, creating a gradient effect                
-                gridObjects.push(new GridObject(go_x, go_y, size, go_fillColour)); 
+                let go_y = y0 + j * spacing; // calculate the y position of the object based on its row index and spacing              
+                gridObjects.push(new GridObject(go_x, go_y, size)); 
             }
         }
     
@@ -84,5 +85,13 @@ async function setup() {
 }
 
 function draw() {
-// Not needed for this static pattern    
+    let randomChange = random(0, 2);
+    console.log(randomChange);
+    for (let i = 0; i < randomChange; i++) {
+        randomIndex = floor(random(0,gridObjects.length));
+        gridObjects[randomIndex].glyph = random(glyphs); //randomly select a new glyph from the glyphs array for each object in the grid
+        gridObjects[randomIndex].display(); //display each object in the grid            
+    }
+ 
+
 }
