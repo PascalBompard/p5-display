@@ -19,6 +19,8 @@ let glyphsPerRow = 8; //number of glyphs per row in the sprite sheet, used to ca
 let glyphsPerColumn = 8; //number of glyphs per column in the sprite sheet, used to calculate the position of each glyph in the sheet
 let lastChangeTime = 0; //variable to keep track of the last time a change was made to the grid objects
 let changeInterval = 1000; //interval in milliseconds between changes to the grid objects, can be adjusted to control the speed of the animation
+let staggerDelay = 2000; //delay in milliseconds between changes to individual grid objects, can be adjusted to control the speed of the animation
+let withinObjectDelay = 300; //delay in milliseconds between changes to the fill color and glyph of an individual grid object, can be adjusted to control the speed of the animation
 
 
 // Classes
@@ -30,7 +32,13 @@ class GridObject {
         this.glyph = random(glyphs); //randomly select a glyph from the glyphs array
         this.size = size; //size of the grid
         this.glyphSize = size; //size of the glyph, set to the same size as the grid
-        this.randomFill = random(100, 250); //fill color of the object
+        this.randomFill = random(50, 250); //fill color of the object
+
+        this.pendingFill= null; //variable to hold the pending fill color for the object, initialized to null
+        this.pendingGlyph= null; //variable to hold the pending glyph for the object, initialized to null
+        this.fillChangeTime = null; //variable to keep track of the last time a fill color change was made, initialized to null
+        this.glyphChangeTime = null; //variable to keep track of the last time a glyph change was made, initialized to null
+
     }
     
     display() {
@@ -42,18 +50,40 @@ class GridObject {
         image(this.glyph, this.x + this.size / 2, this.y + this.size / 2, this.glyphSize, this.glyphSize);//         
         pop();
     }
+
+    scheduleChange(delay) {
+        this.pendingFill = random(50, 250); //randomly select a new fill color for the object
+        this.pendingGlyph = random(glyphs); //randomly select a new glyph from the glyphs array for the object
+        this.fillChangeTime = millis() + delay; //set the time for the fill color change to occur after the specified delay
+        this.glyphChangeTime = millis() + delay + withinObjectDelay; //set the time for the glyph change to occur after the specified delay
+    }
+
+    update() {
+        let now = millis(); //get the current time in milliseconds
+
+        if (this.fillChangeTime !== null && now >= this.fillChangeTime) { //check if the fill color change time has been reached
+            this.randomFill = this.pendingFill; //update the fill color to the pending fill color
+            this.pendingFill = null; //reset the pending fill color to null
+            this.fillChangeTime = null; //reset the fill change time to null
+            this.display(); //display the object with the new fill color
+        
+        }
+        if (this.glyphChangeTime !== null && now >= this.glyphChangeTime) { //check if the glyph change time has been reached
+            this.glyph = this.pendingGlyph; //update the glyph to the pending glyph
+            this.pendingGlyph = null; //reset the pending glyph to null
+            this.glyphChangeTime = null; //reset the glyph change time to null
+            this.display(); //display the object with the new glyph
+        }
+    }
 }
 
 // Functions
 
 function changeGridObjects() {
-    let randomIndex
     let randomChange = random(1, 10);
     for (let i = 0; i < randomChange; i++) {
-        randomIndex = floor(random(0, gridObjects.length));
-        gridObjects[randomIndex].glyph = random(glyphs); //randomly select a new glyph from the glyphs array for each object in the grid
-        gridObjects[randomIndex].randomFill = random(100, 250); //randomly select a new fill color for the object
-        gridObjects[randomIndex].display();
+        let randomIndex = floor(random(0, gridObjects.length));
+        gridObjects[randomIndex].scheduleChange(i * staggerDelay ); //schedule a change for the randomly selected object with a staggered delay
     }
 }
 
@@ -100,6 +130,10 @@ function draw() {
     if (millis() - lastChangeTime > changeInterval) { //check if the time since the last change is greater than the change interval
         changeGridObjects(); //call the function to change the grid objects
         lastChangeTime = millis(); //update the last change time to the current time
+    }
+
+    for (let i = 0; i < gridObjects.length; i++) {
+        gridObjects[i].update(); //update each object in the grid
     }
 
 }
