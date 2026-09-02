@@ -38,7 +38,6 @@ class GridObject {
         noStroke(); 
         rect(this.x, this.y, this.size, this.size);
         push();
-        translate(this.x);
         imageMode(CENTER);
         image(this.glyph, this.x + this.size / 2, this.y + this.size / 2, this.glyphSize, this.glyphSize);//         
         pop();
@@ -48,6 +47,7 @@ class GridObject {
 // Functions
 
 function changeGridObjects() {
+    let randomIndex
     let randomChange = random(1, 10);
     for (let i = 0; i < randomChange; i++) {
         randomIndex = floor(random(0, gridObjects.length));
