@@ -17,6 +17,9 @@ let sheet;
 let glyphs = [];
 let glyphsPerRow = 8; //number of glyphs per row in the sprite sheet, used to calculate the position of each glyph in the sheet
 let glyphsPerColumn = 8; //number of glyphs per column in the sprite sheet, used to calculate the position of each glyph in the sheet
+let lastChangeTime = 0; //variable to keep track of the last time a change was made to the grid objects
+let changeInterval = 1000; //interval in milliseconds between changes to the grid objects, can be adjusted to control the speed of the animation
+
 
 // Classes
 
@@ -27,11 +30,11 @@ class GridObject {
         this.glyph = random(glyphs); //randomly select a glyph from the glyphs array
         this.size = size; //size of the grid
         this.glyphSize = size; //size of the glyph, set to the same size as the grid
-        this.fillColour = random(190,250); //fill color of the object
+        this.randomFill = random(100, 250); //fill color of the object
     }
     
-    display() { 
-        fill(this.fillColour); 
+    display() {
+        fill(this.randomFill); 
         noStroke(); 
         rect(this.x, this.y, this.size, this.size);
         push();
@@ -42,14 +45,25 @@ class GridObject {
     }
 }
 
-// P5 Functions
+// Functions
+
+function changeGridObjects() {
+    let randomChange = random(1, 10);
+    for (let i = 0; i < randomChange; i++) {
+        randomIndex = floor(random(0, gridObjects.length));
+        gridObjects[randomIndex].glyph = random(glyphs); //randomly select a new glyph from the glyphs array for each object in the grid
+        gridObjects[randomIndex].randomFill = random(100, 250); //randomly select a new fill color for the object
+        gridObjects[randomIndex].display();
+    }
+}
+
+
+// P5 Core Functions
 
 async function setup() {
     createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
     background(255);
-    angleMode(DEGREES); //set the angle mode to radians
-    // frameRate(5); //set the frame rate to 1 frame per second
-
+   
      // waits for asset to load
     sheet = await loadImage("assets/glyphs-v1.png");
     // Calculate the position and size of each glyph in the sprite sheet and store them in the glyphs array
@@ -64,12 +78,9 @@ async function setup() {
         }
     }
   
-
     columns = width / spacing; //calculate the number of columns based on the canvas width and spacing
     rows = height / spacing; //calculate the number of rows based on the canvas height and spacing
  
-
-
     // Create a grid of objects with a color gradient based on their position
     for (let i = 0; i < columns; i++) {
             for (let j = 0; j < rows; j++) {
@@ -85,13 +96,11 @@ async function setup() {
 }
 
 function draw() {
-    let randomChange = random(0, 2);
-    console.log(randomChange);
-    for (let i = 0; i < randomChange; i++) {
-        randomIndex = floor(random(0,gridObjects.length));
-        gridObjects[randomIndex].glyph = random(glyphs); //randomly select a new glyph from the glyphs array for each object in the grid
-        gridObjects[randomIndex].display(); //display each object in the grid            
+
+    if (millis() - lastChangeTime > changeInterval) { //check if the time since the last change is greater than the change interval
+        changeGridObjects(); //call the function to change the grid objects
+        lastChangeTime = millis(); //update the last change time to the current time
     }
- 
 
 }
+
