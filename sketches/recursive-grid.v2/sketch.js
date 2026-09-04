@@ -17,7 +17,7 @@ const PALETTE = [
   '#eee1ad'
 ];
 
-let imagePath = 'assets/glyphs-v2.png';
+let imagePath = 'assets/glyphs-v2.PNG';
 let sheet;
 let glyphs = [];
 let glyphsPerRow = 8;
