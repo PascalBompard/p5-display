@@ -5,12 +5,12 @@
 let root;
 
 const MIN_SIZE = 20; //minimum size of a region
-const MAX_DEPTH = 5; //maximum depth of the quadtree
+const MAX_DEPTH = 6; //maximum depth of the quadtree
 const MIN_SPLIT_DEPTH = 2; //don't split regions that are shallower than this depth
 const STOP_CHANCE_BASE = 0.05; //base chance of stopping the split
 const STOP_CHANCE_STEP = 0.06; //additional chance of stopping the split for each depth level
 const PALETTE = [
-  '#ff2291',
+  '#dab2c6',
   '#D9C7A3',
   '#B5835D',
   '#709a81',
