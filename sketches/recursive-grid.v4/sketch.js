@@ -11,12 +11,17 @@ const MIN_SPLIT_DEPTH = 2; //don't split regions that are shallower than this de
 const MAX_ASPECT = 4;
 const STOP_CHANCE_BASE = 0.03; //base chance of stopping the split
 const STOP_CHANCE_STEP = 0.06; //additional chance of stopping the split for each depth level
-const PALETTE = [
-  '#fff',
-  '#ededed',
-  '#fcfcfc',
-  '#cacaca',
-  '#bfbfbf',
+const PALETTE_ASPECT_1 = [
+  '#fFF',
+  '#CECECE',
+  '#BEBEBE',
+];
+const PALETTE_ASPECT_RECT= [
+  '#ffff2f',
+  '#d060fc',
+  '#3bff62',
+  '#38f0d1',
+  '#121212',
 ];
 
 let imagePath = 'assets/G-1block-1.webp';
@@ -70,7 +75,7 @@ class Region {
     subdivide() {
         if (this.shouldStopSplitting()) { //if the region should stop splitting, mark it as a leaf and assign a random color
             this.isLeaf = true;
-            this.col = color(random(PALETTE)); //assign a random color from the palette to the leaf region
+//            this.col = color(random(PALETTE_ASPECT_1)); //assign a random color from the palette to the leaf region
 
             if (this.unitsW === this.unitsH) {
                 this.glyph = random(glyphs); //assign a random glyph from the glyphs array to the leaf region
@@ -103,11 +108,14 @@ class Region {
 
     display() {
         if (this.isLeaf) {
-            fill(this.col);
+            fill(color(random(PALETTE_ASPECT_RECT)));
             noStroke();
             rect(this.x, this.y, this.w, this.h);
 
             if (this.glyph) {
+                fill(color(random(PALETTE_ASPECT_1)));
+                noStroke();
+                rect(this.x, this.y, this.w, this.h); 
                 const g = this.glyph;
                 const leafAspect = this.w / this.h;
 
