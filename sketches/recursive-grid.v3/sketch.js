@@ -4,20 +4,21 @@
 // Vars
 let root;
 
-const MIN_SIZE = 20; //minimum size of a region
+let UNITS_PER_ROW = 20;
+let UNIT_SIZE;
 const MAX_DEPTH = 8; //maximum depth of the quadtree
 const MIN_SPLIT_DEPTH = 2; //don't split regions that are shallower than this depth
-const STOP_CHANCE_BASE = 0.05; //base chance of stopping the split
+const STOP_CHANCE_BASE = 0.03; //base chance of stopping the split
 const STOP_CHANCE_STEP = 0.06; //additional chance of stopping the split for each depth level
 const PALETTE = [
-  '#dab2c6',
-  '#D9C7A3',
-  '#B5835D',
-  '#709a81',
-  '#eee1ad'
+  '#fff',
+  '#ededed',
+  '#fcfcfc',
+  '#cacaca',
+  '#bfbfbf',
 ];
 
-let imagePath = 'assets/glyphs-v2.PNG';
+let imagePath = 'assets/G-1block-1.webp';
 let sheet;
 let glyphs = [];
 let glyphsPerRow = 8;
@@ -43,9 +44,13 @@ class Region {
         if (this.depth >= MAX_DEPTH) {
             return true;
         }
-        if (this.w < MIN_SIZE || this.h < MIN_SIZE) {
-            return true;
+        
+        const unitsW = this.w / UNIT_SIZE;
+        const unitsH = this.h / UNIT_SIZE;
+        if (unitsW <= 1 || unitsH <= 1) {
+            return true; // stop splitting if the region is too small to be divided into at least 2 units
         }
+
         if (this.depth >= MIN_SPLIT_DEPTH) {
             const chance = STOP_CHANCE_BASE + (this.depth - MIN_SPLIT_DEPTH) * STOP_CHANCE_STEP; // calculate the chance of stopping the split based on the depth
             if (random() < chance) { //if a random number between 0 and 1 is less than the chance, stop splitting
@@ -66,21 +71,26 @@ class Region {
         this.isLeaf = false;
 
         const splitVertically = this.w >= this.h; // boolean to determine if the region should be split vertically
-        const aspect = max(this.w, this.h) / min(this.w, this.h);
-        let ratio;
-        if (aspect > 1.1) { //
-        ratio = random(0.48, 0.52);
-        } else {
-        ratio = random(0.35, 0.65);
-        }
+
+        // const aspect = max(this.w, this.h) / min(this.w, this.h);
+        // let ratio;
+        // if (aspect > 1.1) { //
+        // ratio = random(0.48, 0.52);
+        // } else {
+        // ratio = random(0.35, 0.65);
+        // }
 
 
         if (splitVertically) {
-            const splitX = this.w * ratio;
+            const totalUnits = this.w / UNIT_SIZE; // calculate the total number of units that can fit in the width of the region
+            const splitUnits = floor(random(1, totalUnits)); // choose a random number of units to split off for the first child
+            const splitX = splitUnits * UNIT_SIZE; // calculate the x-coordinate of the split based on the number of units
             this.children.push(new Region(this.x, this.y, splitX, this.h, this.depth + 1)); 
             this.children.push(new Region(this.x + splitX, this.y, this.w - splitX, this.h, this.depth + 1));
         } else {
-            const splitY = this.h * ratio;
+            const totalUnits = this.h / UNIT_SIZE; // calculate the total number of units that can fit in the height of the region
+            const splitUnits = floor(random(1, totalUnits)); // choose a random number of units to split off for the first child
+            const splitY = splitUnits * UNIT_SIZE; // calculate the y-coordinate of the split based on the number of units
             this.children.push(new Region(this.x, this.y, this.w, splitY, this.depth + 1));
             this.children.push(new Region(this.x, this.y + splitY, this.w, this.h - splitY, this.depth + 1));
         }
@@ -130,6 +140,10 @@ async function setup() {
     createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
     noLoop(); //stop the draw loop from running automatically
 
+    UNIT_SIZE = width / UNITS_PER_ROW; //calculate the size of each unit based on the canvas width and the number of units per row
+    const unitsPerColumn = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
+    const gridHeight = unitsPerColumn * UNIT_SIZE; //calculate the total height of the grid based on the number of units and the unit size
+
     sheet = await loadImage(imagePath); //load the sprite sheet image
 
     for (let i = 0; i < glyphsPerColumn; i++) {
@@ -142,7 +156,7 @@ async function setup() {
         }
     }
 
-    root = new Region(0, 0, width, height, 0); //create a new Region object that represents the entire canvas
+    root = new Region(0, 0, windowWidth, gridHeight, 0); //create a new Region object that represents the entire canvas
 
 }
 
@@ -152,6 +166,6 @@ function draw() {
 }
 
 function mousePressed() {
-    root = new Region(0, 0, width, height, 0);
+    root = new Region(0, 0, windowWidth, windowHeight, 0);
     redraw(); 
 }   
