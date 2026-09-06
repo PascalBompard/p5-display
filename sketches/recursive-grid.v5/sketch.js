@@ -21,11 +21,10 @@ const PALETTE_ASPECT_1 = [
   '#BEBEBE',
 ];
 const PALETTE_ASPECT_RECT= [
-  '#48481c',
-  '#351d3e',
-  '#414241',
-  '#303131',
-  '#121212',
+    '#fFF',
+    '#CECECE',
+    '#BEBEBE',
+    '#898e88',
 ];
 
 const GLYPH_CONFIG = {
@@ -105,9 +104,7 @@ class Region {
 
     subdivide() {
         if (this.shouldStopSplitting()) { //if the region should stop splitting, mark it as a leaf and assign a random color
-            this.squareCol = color(random(PALETTE_ASPECT_1));
             this.rectCol = color(random(PALETTE_ASPECT_RECT));
-            fill(color(random(PALETTE_ASPECT_RECT)));
             this.isLeaf = true;
 //            this.col = color(random(PALETTE_ASPECT_1)); //assign a random color from the palette to the leaf region
 
@@ -159,30 +156,6 @@ class Region {
             } else {
                 image(g, this.x, this.y, this.w, this.h); //draw the glyph in the region
             }
-
-            fill(this.squareCol);
-            noStroke();
-            rect(this.x, this.y, this.w, this.h); 
-            
-            const leafAspect = this.w / this.h;
-
-            let sx, sy, sw, sh;
-
-            if (leafAspect > 1) {
-                // wider than tall, crop glyph vertically
-                sw = g.width;
-                sh = g.width / leafAspect;
-                sx = 0;
-                sy = (g.height - sh) / 2;                  
-            } else {
-                // taller than wide, crop glyph horizontally
-                sh = g.height;
-                sw = g.height * leafAspect;
-                sy = 0;
-                sx = (g.width - sw) / 2;
-            }
-
-            image(g, this.x, this.y, this.w, this.h, sx, sy, sw, sh); //draw the glyph in the region
         }
     }
 
