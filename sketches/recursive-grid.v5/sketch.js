@@ -6,7 +6,7 @@ let root;
 let leaves = []; // array to hold the leaf regions
 let revealedCount = 0; // counter for the number of revealed leaf regions
 let lastRevealTime = null; // timestamp of the last revealed leaf region
-const REVEAL_DELAY = 100; // interval in milliseconds between revealing leaf regions
+const REVEAL_DELAY = 50; // interval in milliseconds between revealing leaf regions
 
 let UNITS_PER_ROW = 20;
 let UNIT_SIZE;
@@ -78,6 +78,9 @@ class Region {
 
     subdivide() {
         if (this.shouldStopSplitting()) { //if the region should stop splitting, mark it as a leaf and assign a random color
+            this.squareCol = color(random(PALETTE_ASPECT_1));
+            this.rectCol = color(random(PALETTE_ASPECT_RECT));
+            fill(color(random(PALETTE_ASPECT_RECT)));
             this.isLeaf = true;
 //            this.col = color(random(PALETTE_ASPECT_1)); //assign a random color from the palette to the leaf region
 
@@ -111,12 +114,12 @@ class Region {
     }
 
     renderLeaf() {
-        fill(color(random(PALETTE_ASPECT_RECT)));
+        fill(this.rectCol);
         noStroke();
         rect(this.x, this.y, this.w, this.h);
 
         if (this.glyph) {
-            fill(color(random(PALETTE_ASPECT_1)));
+            fill(this.squareCol);
             noStroke();
             rect(this.x, this.y, this.w, this.h); 
             const g = this.glyph;
@@ -207,16 +210,20 @@ function draw() {
         revealedCount++;
         lastRevealTime = millis();
 
-        background(123); //clear the background before rendering the leaves
-
-        for (let i = 0; i < revealedCount; i++) {
-            leaves[i].renderLeaf(); //display the revealed leaf regions
-        }
+        leaves[revealedCount - 1].renderLeaf();
+        
     }
 
 }
 
 function mousePressed() {
-    root = new Region(0, 0, windowWidth, windowHeight, 0);
-    redraw(); 
+    background(123);
+
+    const unitsPerColumn = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
+    const gridHeight = unitsPerColumn * UNIT_SIZE; //calculate the total height of the grid based on the number of units and the unit size
+    root = new Region(0, 0, windowWidth, gridHeight, 0);
+    leaves = [];
+    root.collectLeaves(leaves);
+    revealedCount = 0;
+    lastRevealTime = null;
 }   
