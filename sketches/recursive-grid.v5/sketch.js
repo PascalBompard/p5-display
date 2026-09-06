@@ -6,7 +6,7 @@ let root;
 let leaves = []; // array to hold the leaf regions
 let revealedCount = 0; // counter for the number of revealed leaf regions
 let lastRevealTime = null; // timestamp of the last revealed leaf region
-const REVEAL_DELAY = 50; // interval in milliseconds between revealing leaf regions
+const REVEAL_DELAY = 10; // interval in milliseconds between revealing leaf regions
 
 let UNITS_PER_ROW = 20;
 let UNIT_SIZE;
@@ -21,18 +21,33 @@ const PALETTE_ASPECT_1 = [
   '#BEBEBE',
 ];
 const PALETTE_ASPECT_RECT= [
-  '#ffff2f',
-  '#d060fc',
-  '#3bff62',
-  '#38f0d1',
+  '#48481c',
+  '#351d3e',
+  '#414241',
+  '#303131',
   '#121212',
 ];
 
-let imagePath = 'assets/G-1block-1.webp';
-let sheet;
-let glyphs = [];
-let glyphsPerRow = 8;
-let glyphsPerColumn = 8;
+const GLYPH_CONFIG = {
+    1: {
+        path: 'assets/G-1block-1.webp',
+        glyphsPerRow: 8,
+        glyphsPerColumn: 8
+    },
+    2: {
+        path: 'assets/G-2block-1.webp',
+        glyphsPerRow: 8,
+        glyphsPerColumn: 4
+    },
+    3: {
+        path: 'assets/G-3block-1.webp',
+        glyphsPerRow: 8,
+        glyphsPerColumn: 2
+    }   
+};
+
+
+let glyphSheets = {1:[], 2:[], 3:[]}; //
 
 // Classes
 class Region {
@@ -44,6 +59,18 @@ class Region {
         this.depth = depth;
         this.unitsH = round(this.h / UNIT_SIZE);// calculate the number of units that can fit in the height of the region
         this.unitsW = round(this.w / UNIT_SIZE);// calculate the number of units that can fit in the width of the region
+
+        const rawAspect = max(this.unitsW, this.unitsH) / min(this.unitsW, this.unitsH);
+        this.aspectClass = round(rawAspect);
+
+        if (this.aspectClass === 1) {        
+            this.orientation = 'square';
+        } else if (this.unitsW > this.unitsH) {
+            this.orientation = 'wide';
+        } else {
+            this.orientation = 'tall';
+        }
+
 
         this.children = [];
         this.isLeaf = true;
@@ -84,9 +111,11 @@ class Region {
             this.isLeaf = true;
 //            this.col = color(random(PALETTE_ASPECT_1)); //assign a random color from the palette to the leaf region
 
-            if (this.unitsW === this.unitsH) {
-                this.glyph = random(glyphs); //assign a random glyph from the glyphs array to the leaf region
-             } else {
+            const pool = glyphSheets[this.aspectClass]; 
+
+            if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
+                this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
+            } else {
                 this.glyph = null; // don't assign a glyph if the region is not square
             }
 
@@ -119,10 +148,22 @@ class Region {
         rect(this.x, this.y, this.w, this.h);
 
         if (this.glyph) {
+            const g = this.glyph;
+
+            if (this.orientation === 'wide') {
+                push();
+                translate(this.x + this.w/2, this.y + this.h/2);
+                rotate(90);
+                image(g, -this.h/2, -this.w/2, this.h, this.w); //draw the glyph in the region
+                pop();
+            } else {
+                image(g, this.x, this.y, this.w, this.h); //draw the glyph in the region
+            }
+
             fill(this.squareCol);
             noStroke();
             rect(this.x, this.y, this.w, this.h); 
-            const g = this.glyph;
+            
             const leafAspect = this.w / this.h;
 
             let sx, sy, sw, sh;
@@ -173,6 +214,7 @@ class Region {
 // P5 Core Functions
 
 async function setup() {
+    angleMode(DEGREES);
     createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
     //noLoop(); //stop the draw loop from running automatically
      background(123);
@@ -181,17 +223,24 @@ async function setup() {
     const unitsPerColumn = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
     const gridHeight = unitsPerColumn * UNIT_SIZE; //calculate the total height of the grid based on the number of units and the unit size
 
-    sheet = await loadImage(imagePath); //load the sprite sheet image
 
-    for (let i = 0; i < glyphsPerColumn; i++) {
-    for (let j = 0; j < glyphsPerRow; j++) {
-        let x = j * (sheet.width / glyphsPerRow);
-        let y = i * (sheet.height / glyphsPerColumn);
-        let w = sheet.width / glyphsPerRow;
-        let h = sheet.height / glyphsPerColumn;
-        glyphs.push(sheet.get(x, y, w, h));
+    for (const aspectClass in GLYPH_CONFIG) {
+        const config = GLYPH_CONFIG[aspectClass];
+        const sheet = await loadImage(config.path);
+
+        for (let i = 0; i < config.glyphsPerColumn; i++) {
+            for (let j = 0; j < config.glyphsPerRow; j++) {
+                let x = j * (sheet.width / config.glyphsPerRow);
+                let y = i * (sheet.height / config.glyphsPerColumn);
+                let w = sheet.width / config.glyphsPerRow;
+                let h = sheet.height / config.glyphsPerColumn;
+                glyphSheets[aspectClass].push(sheet.get(x, y, w, h));
+            }
         }
     }
+
+
+    
 
     root = new Region(0, 0, windowWidth, gridHeight, 0); //create a new Region object that represents the entire canvas
     root.collectLeaves(leaves); //collect all the leaf regions in the root region and store them in the leaves array
