@@ -16,7 +16,7 @@ let UNITS_PER_ROW = 20;
 let UNIT_SIZE;
 const MAX_DEPTH = 8; //maximum depth of the quadtree
 const MIN_SPLIT_DEPTH = 2; //don't split regions that are shallower than this depth
-const MAX_ASPECT = 4;
+const MAX_ASPECT = 10;
 const STOP_CHANCE_BASE = 0.03; //base chance of stopping the split
 const STOP_CHANCE_STEP = 0.06; //additional chance of stopping the split for each depth level
 const PALETTE_ASPECT_1 = [
@@ -168,35 +168,13 @@ class Region {
         }
     }
 
-    // renderLeaf() {
-    //     fill(this.rectCol);
-    //     noStroke();
-    //     rect(this.x, this.y, this.w, this.h);
+    assignRandomGlyph() {
+        const pool = glyphSheets[this.aspectClass]; //get the pool of glyphs for the aspect class
 
-    //     if (this.glyph) {
-    //         const g = this.glyph;
-
-    //         if (this.orientation === 'wide') {
-    //             push();
-    //             translate(this.x + this.w/2, this.y + this.h/2);
-    //             rotate(90);
-    //             image(g, -this.h/2, -this.w/2, this.h, this.w); //draw the glyph in the region
-    //             pop();
-    //         } else {
-    //             image(g, this.x, this.y, this.w, this.h); //draw the glyph in the region
-    //         }
-    //     }
-    // }
-
-    // display() {
-    //     if (this.isLeaf) {
-    //         this.renderLeaf();
-    //     } else {
-    //         for (const child of this.children) {
-    //             child.display();
-    //         }
-    //     }
-    // }
+        if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
+            this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
+        }
+    }
 
     collectLeaves(list) {
         if (this.isLeaf) {
@@ -209,9 +187,17 @@ class Region {
     }
 }
 
+
 // Functions
 
-
+function findLeafAt(px,py) {
+    for (const leaf of leaves) {
+        if (px >= leaf.x && px < leaf.x + leaf.w && py >= leaf.y && py < leaf.y + leaf.h) {
+            return leaf;
+        }
+    }
+    return null; //return null if no leaf is found at the given coordinates
+}
 
 // P5 Core Functions
 
@@ -279,7 +265,7 @@ function draw() {
 
 // }
 
-function mousePressed() {
+function keyPressed() {
     background(123);
 
     const unitsPerColumn = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
@@ -291,4 +277,17 @@ function mousePressed() {
     lastRevealTime = null;
     glyphRevealCount = 0;
     lastGlyphRevealTime = null;
-}   
+}
+
+function mousePressed() {
+    const fullyRevealed = revealedCount >= leaves.length && glyphRevealCount >= leaves.length;
+    if (!fullyRevealed) {
+        return; //do nothing if not all leaf regions and glyphs have been revealed
+    }
+    const leaf = findLeafAt(mouseX, mouseY);
+    if (leaf) {
+        leaf.assignRandomGlyph();
+        leaf.renderBackground();
+        leaf.renderGlyph();
+    }
+}
