@@ -104,15 +104,16 @@ class Region {
 
     subdivide() {
         if (this.shouldStopSplitting()) { //if the region should stop splitting, mark it as a leaf and assign a random color
-            this.rectCol = color(random(PALETTE_ASPECT_RECT));
+            //this.rectCol = color(random(PALETTE_ASPECT_RECT));
             this.isLeaf = true;
-//            this.col = color(random(PALETTE_ASPECT_1)); //assign a random color from the palette to the leaf region
 
             const pool = glyphSheets[this.aspectClass]; 
 
             if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
+                this.rectCol = color(random(PALETTE_ASPECT_RECT));
                 this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
             } else {
+                this.rectCol = '#ff0000';
                 this.glyph = null; // don't assign a glyph if the region is not square
             }
 
