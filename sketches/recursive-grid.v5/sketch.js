@@ -7,6 +7,10 @@ let leaves = []; // array to hold the leaf regions
 let revealedCount = 0; // counter for the number of revealed leaf regions
 let lastRevealTime = null; // timestamp of the last revealed leaf region
 const REVEAL_DELAY = 10; // interval in milliseconds between revealing leaf regions
+let glyphRevealCount = 0; // counter for the number of revealed glyphs
+let lastGlyphRevealTime = null; // timestamp of the last revealed glyph
+const GLYPH_REVEAL_DELAY = 5; // interval in milliseconds between revealing glyphs
+
 
 let UNITS_PER_ROW = 20;
 let UNIT_SIZE;
@@ -113,7 +117,7 @@ class Region {
                 this.rectCol = color(random(PALETTE_ASPECT_RECT));
                 this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
             } else {
-                this.rectCol = '#ff0000';
+                this.rectCol = '#0000ff';
                 this.glyph = null; // don't assign a glyph if the region is not square
             }
 
@@ -140,11 +144,15 @@ class Region {
         }
     }
 
-    renderLeaf() {
+
+
+    renderBackground() {
         fill(this.rectCol);
         noStroke();
         rect(this.x, this.y, this.w, this.h);
+    }
 
+    renderGlyph() {
         if (this.glyph) {
             const g = this.glyph;
 
@@ -160,15 +168,35 @@ class Region {
         }
     }
 
-    display() {
-        if (this.isLeaf) {
-            this.renderLeaf();
-        } else {
-            for (const child of this.children) {
-                child.display();
-            }
-        }
-    }
+    // renderLeaf() {
+    //     fill(this.rectCol);
+    //     noStroke();
+    //     rect(this.x, this.y, this.w, this.h);
+
+    //     if (this.glyph) {
+    //         const g = this.glyph;
+
+    //         if (this.orientation === 'wide') {
+    //             push();
+    //             translate(this.x + this.w/2, this.y + this.h/2);
+    //             rotate(90);
+    //             image(g, -this.h/2, -this.w/2, this.h, this.w); //draw the glyph in the region
+    //             pop();
+    //         } else {
+    //             image(g, this.x, this.y, this.w, this.h); //draw the glyph in the region
+    //         }
+    //     }
+    // }
+
+    // display() {
+    //     if (this.isLeaf) {
+    //         this.renderLeaf();
+    //     } else {
+    //         for (const child of this.children) {
+    //             child.display();
+    //         }
+    //     }
+    // }
 
     collectLeaves(list) {
         if (this.isLeaf) {
@@ -213,31 +241,43 @@ async function setup() {
         }
     }
 
-
-    
-
     root = new Region(0, 0, windowWidth, gridHeight, 0); //create a new Region object that represents the entire canvas
     root.collectLeaves(leaves); //collect all the leaf regions in the root region and store them in the leaves array
-
 }
 
 function draw() {
-    if (revealedCount >= leaves.length) {
-        return; //stop the draw loop if all leaf regions have been revealed
-    }
-    
-   
-
-    
-    if (lastRevealTime === null || millis() - lastRevealTime >= REVEAL_DELAY) {
-        revealedCount++;
-        lastRevealTime = millis();
-
-        leaves[revealedCount - 1].renderLeaf();
-        
+    if (revealedCount < leaves.length) {
+        if (lastRevealTime === null || millis() - lastRevealTime >= REVEAL_DELAY) {
+            revealedCount++;
+            lastRevealTime = millis();
+            leaves[revealedCount - 1].renderBackground(); //render the background of the next leaf region
+        }
+        return; //stop the draw loop if not all leaf regions have been revealed
     }
 
+    if (glyphRevealCount < leaves.length) {
+        if (lastGlyphRevealTime === null || millis() - lastGlyphRevealTime >= GLYPH_REVEAL_DELAY) {
+            glyphRevealCount++;
+            lastGlyphRevealTime = millis();
+            leaves[glyphRevealCount - 1].renderGlyph(); //render the glyph of the next leaf region
+        }
+        return; //stop the draw loop if not all glyphs have been revealed
+    }   
 }
+
+
+// function draw() {
+//     if (revealedCount >= leaves.length) {
+//         return; //stop the draw loop if all leaf regions have been revealed
+//     }
+    
+//     if (lastRevealTime === null || millis() - lastRevealTime >= REVEAL_DELAY) {
+//         revealedCount++;
+//         lastRevealTime = millis();
+//         leaves[revealedCount - 1].renderLeaf();
+//     }
+
+// }
 
 function mousePressed() {
     background(123);
@@ -249,4 +289,6 @@ function mousePressed() {
     root.collectLeaves(leaves);
     revealedCount = 0;
     lastRevealTime = null;
+    glyphRevealCount = 0;
+    lastGlyphRevealTime = null;
 }   
