@@ -6,17 +6,18 @@ let root;
 let leaves = []; // array to hold the leaf regions
 let revealedCount = 0; // counter for the number of revealed leaf regions
 let lastRevealTime = null; // timestamp of the last revealed leaf region
-const REVEAL_DELAY = 10; // interval in milliseconds between revealing leaf regions
+const REVEAL_DELAY = 1; // interval in milliseconds between revealing leaf regions
 let glyphRevealCount = 0; // counter for the number of revealed glyphs
 let lastGlyphRevealTime = null; // timestamp of the last revealed glyph
-const GLYPH_REVEAL_DELAY = 5; // interval in milliseconds between revealing glyphs
+const GLYPH_REVEAL_DELAY = 1; // interval in milliseconds between revealing glyphs
 
 
 let UNITS_PER_ROW = 20;
 let UNIT_SIZE;
 const MAX_DEPTH = 8; //maximum depth of the quadtree
 const MIN_SPLIT_DEPTH = 2; //don't split regions that are shallower than this depth
-const MAX_ASPECT = 10;
+const MAX_ASPECT = 6;
+const MAX_ASPECT_DEVIATION = 0.05; // how far a leaf's deviation may drift
 const STOP_CHANCE_BASE = 0.03; //base chance of stopping the split
 const STOP_CHANCE_STEP = 0.06; //additional chance of stopping the split for each depth level
 const PALETTE_ASPECT_1 = [
@@ -83,15 +84,22 @@ class Region {
     }
 
     shouldStopSplitting() {
+         if (this.depth >= MAX_DEPTH) {
+            return true; // hard backstop, never split deeper than this regardless of aspect ratio
+        }
+
+
         const aspect = max(this.unitsW, this.unitsH) / min(this.unitsW, this.unitsH);
 
         if (aspect > MAX_ASPECT) {
             return false; // allow splitting if the aspect ratio is too extreme
         }
 
-        if (this.depth >= MAX_DEPTH) {
-            return true;
-        }
+       const aspectDeviation = abs(aspect - this.aspectClass);
+
+       if (aspectDeviation > MAX_ASPECT_DEVIATION) {
+            return false // too far from a clean ratio, so keep splitting
+       }
         
         if (this.unitsW <= 1 && this.unitsH <= 1) {
             return true; // stop splitting if the region is too small to be divided into at least 2 units
@@ -150,6 +158,10 @@ class Region {
         fill(this.rectCol);
         noStroke();
         rect(this.x, this.y, this.w, this.h);
+    }
+
+    assignRandomBackground() {
+        this.rectCol = color(random(PALETTE_ASPECT_RECT));
     }
 
     renderGlyph() {
@@ -286,8 +298,9 @@ function mousePressed() {
     }
     const leaf = findLeafAt(mouseX, mouseY);
     if (leaf) {
-        leaf.assignRandomGlyph();
+        leaf.assignRandomBackground();
         leaf.renderBackground();
+        leaf.assignRandomGlyph();
         leaf.renderGlyph();
     }
 }
