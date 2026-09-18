@@ -83,7 +83,8 @@ class Region {
         this.isLeaf = true;
         this.col = null;
         this.bgChangeTime = null;
-        this.glyphChangeTime = null; 
+        this.glyphChangeTime = null;
+        this.acceptGlyph = true; 
 
         this.subdivide(); //subdivide the region upon creation
     }
@@ -132,6 +133,7 @@ class Region {
             } else {
                 this.rectCol = '#0000ff';
                 this.glyph = null; // don't assign a glyph if the region is not square
+                this.acceptGlyph = false;
             }
 
             return;
@@ -209,7 +211,7 @@ class Region {
     updateCycle() {
         const now = millis();
 
-        if (this.bgChangeTime !== null && now >= this.bgChangeTime) {
+        if (this.bgChangeTime !== null && now >= this.bgChangeTime && this.acceptGlyph) {
             this.assignRandomBackground();
             this.renderBackground();
             this.bgChangeTime = null;
@@ -314,6 +316,12 @@ function draw() {
 
 
 function keyPressed() {
+
+    if (key == 's') {
+      saveCanvas("canvas", "png");
+    } 
+
+    if (key === 'r') {
     background(123);
 
     const unitsPerColumn = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
@@ -325,6 +333,8 @@ function keyPressed() {
     lastRevealTime = null;
     glyphRevealCount = 0;
     lastGlyphRevealTime = null;
+    }
+
 }
 
 function mousePressed() {
