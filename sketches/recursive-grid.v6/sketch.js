@@ -2,6 +2,12 @@
 
 
 // Vars
+
+// Window resize boilerplate
+let resizeTimer = 0;
+let resizePending = false;
+// ---
+
 let root;
 let leaves = []; // array to hold the leaf regions
 let revealedCount = 0; // counter for the number of revealed leaf regions
@@ -13,31 +19,33 @@ const GLYPH_REVEAL_DELAY = 1; // interval in milliseconds between revealing glyp
 let nextCycleTime = 0; // timestamp at which the next cycle batch should be scheduled
 
 const CYCLE_CHANGE_MIN = 1; // minimum number of leaves refreshed in each cycle batch
-const CYCLE_CHANGE_MAX = 8; // maximum number of leaves refreshed in each cycle batch
-const CYCLE_STAGGER_DELAY = 400; // delay in milliseconds between each leaf's refresh within a batch
-const CYCLE_WITHIN_LEAF_DELAY = 100; // delay in milliseconds between each leaf's refresh within a batch
-const CYCLE_INTERVAL = 2000; // pause in milliseconds after a batch finishes before the next one is scheduled
+const CYCLE_CHANGE_MAX = 4; // maximum number of leaves refreshed in each cycle batch
+const CYCLE_STAGGER_DELAY = 500; // delay in milliseconds between each leaf's refresh within a batch
+const CYCLE_WITHIN_LEAF_DELAY = 150; // delay in milliseconds between each leaf's refresh within a batch
+const CYCLE_INTERVAL = 2500; // pause in milliseconds after a batch finishes before the next one is scheduled
 
 let UNITS_PER_ROW = 20;
 let UNIT_SIZE;
-const MAX_DEPTH = 8; //maximum depth of the quadtree
-const MIN_SPLIT_DEPTH = 2; //don't split regions that are shallower than this depth
+const MAX_DEPTH = 7; //maximum depth of the quadtree
+const MIN_SPLIT_DEPTH = 3; //don't split regions that are shallower than this depth
 const MAX_ASPECT = 6;
 const MAX_ASPECT_DEVIATION = 0.05; // how far a leaf's deviation may drift
 const STOP_CHANCE_BASE = 0.03; //base chance of stopping the split
 const STOP_CHANCE_STEP = 0.06; //additional chance of stopping the split for each depth level
 
-const PALETTE_ASPECT_1 = [
-  '#fFF',
-  '#CECECE',
-  '#BEBEBE',
+const PALETTE= [
+    '#6d7171',
+    '#FFFF00',
+    '#FAFAFA',
+    '#EEF0DF',
+    '#deb071',
+    '#B7BCC9'
 ];
-const PALETTE_ASPECT_RECT= [
-    '#fFF',
-    '#CECECE',
-    '#BEBEBE',
-    '#898e88',
-];
+const BLANK = '#f9f9ff';
+const BORDER = '#aaa';
+const THICKNESS = 1;
+
+
 const GLYPH_CONFIG = {
     1: {
         path: 'assets/G-1block-1.webp',
@@ -128,10 +136,10 @@ class Region {
             const pool = glyphSheets[this.aspectClass]; 
 
             if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
-                this.rectCol = color(random(PALETTE_ASPECT_RECT));
+                this.rectCol = color(random(PALETTE));
                 this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
             } else {
-                this.rectCol = '#0000ff';
+                this.rectCol = BLANK;
                 this.glyph = null; // don't assign a glyph if the region is not square
                 this.acceptGlyph = false;
             }
@@ -161,12 +169,14 @@ class Region {
 
     renderBackground() {
         fill(this.rectCol);
+        // strokeWeight(THICKNESS);
+        // stroke(BORDER);
         noStroke();
         rect(this.x, this.y, this.w, this.h);
     }
 
     assignRandomBackground() {
-        this.rectCol = color(random(PALETTE_ASPECT_RECT));
+        this.rectCol = color(random(PALETTE));
     }
 
     renderGlyph() {
@@ -204,6 +214,9 @@ class Region {
     }
 
     scheduleCycleChange(delay){
+        if (!this.acceptGlyph) {
+            return;
+        }
         this.bgChangeTime = millis() + delay;
         this.glyphChangeTime = millis() + delay + CYCLE_WITHIN_LEAF_DELAY;
     }
@@ -211,7 +224,7 @@ class Region {
     updateCycle() {
         const now = millis();
 
-        if (this.bgChangeTime !== null && now >= this.bgChangeTime && this.acceptGlyph) {
+        if (this.bgChangeTime !== null && now >= this.bgChangeTime) {
             this.assignRandomBackground();
             this.renderBackground();
             this.bgChangeTime = null;
@@ -228,6 +241,15 @@ class Region {
 
 
 // Functions
+
+
+// Window resize boilerplate
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    resizeTimer = millis();
+    resizePending = true;
+}
+// ---
 
 function findLeafAt(px,py) {
     for (const leaf of leaves) {
@@ -287,6 +309,14 @@ async function setup() {
 }
 
 function draw() {
+    
+    // Window Resizing
+    if (resizePending && millis() - resizeTimer > 200) {
+        onResize();
+        resizePending = false;
+    }
+    // ---
+
     if (revealedCount < leaves.length) {
         if (lastRevealTime === null || millis() - lastRevealTime >= REVEAL_DELAY) {
             revealedCount++;
@@ -315,15 +345,8 @@ function draw() {
 }
 
 
-function keyPressed() {
-
-    if (key == 's') {
-      saveCanvas("canvas", "png");
-    } 
-
-    if (key === 'r') {
+function rebuildTree() {
     background(123);
-
     const unitsPerColumn = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
     const gridHeight = unitsPerColumn * UNIT_SIZE; //calculate the total height of the grid based on the number of units and the unit size
     root = new Region(0, 0, windowWidth, gridHeight, 0);
@@ -333,6 +356,16 @@ function keyPressed() {
     lastRevealTime = null;
     glyphRevealCount = 0;
     lastGlyphRevealTime = null;
+}
+
+function keyPressed() {
+
+    if (key === 's') {
+      saveCanvas("canvas", "png");
+    } 
+
+    if (key === 'r') {
+        rebuildTree();
     }
 
 }
@@ -343,10 +376,16 @@ function mousePressed() {
         return; //do nothing if not all leaf regions and glyphs have been revealed
     }
     const leaf = findLeafAt(mouseX, mouseY);
-    if (leaf) {
+    if (leaf && leaf.acceptGlyph) {        
         leaf.assignRandomBackground();
         leaf.renderBackground();
         leaf.assignRandomGlyph();
         leaf.renderGlyph();
     }
 }
+
+// Window Resizing
+function onResize() {
+  rebuildTree();
+}
+// ---
