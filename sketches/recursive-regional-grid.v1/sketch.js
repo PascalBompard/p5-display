@@ -7,28 +7,34 @@ let resizePending = false;
 
 // ---------- CONFIG: appearance ----------
 
-const PALETTE_2 = [
-    '#9bb8c0',
-    '#71d9de',
-    '#668187'
-];
 const PALETTE_1= [
-    '#aea6af',
-    '#ff00e1',
-    '#f6a8f4',
+    '#8ACB8B',
+    '#ACDAB9',
+    '#E9E684',
+];
+const PALETTE_2 = [
+    '#6184AF',
+    '#6BA8CD',
+    '#86E8FF'
 ];
 const PALETTE_3 = [
-    '#FFFF00',
-    '#d9dcc5',
-    '#f2f4e2',
+    '#9F7BA1',
+    '#DEAFD3',
+    '#FFB9CA',
 ];    
 const BLANK = [
-    '#5f535d',
-    '#656d70',
-    '#f9f9ff'
+    '#414147',
+    '#6E6161',
+    '#808381'
 ];
-const BORDER = '#aaa';
-const THICKNESS = 1;
+const INK = [
+    '#1D734C',
+    '#323D66',
+    '#582860',
+    '#5C361C'   
+]
+
+let inkedSets = {}; // cache: inkedSets['main|#ffffff'][aspectClass] = array of recoloured glyphs
 
 
 // ---------- CONFIG: grid and subdivision ----------
@@ -37,7 +43,7 @@ let UNITS_PER_ROW = 20;
 let UNIT_SIZE; // calculated in setup() from the canvas width
 
 const MAX_DEPTH = 5; // maximum depth of the tree
-const MIN_SPLIT_DEPTH = 3; // don't stop splitting regions that are shallower than this depth
+const MIN_SPLIT_DEPTH = 3; // minimum depth before a region can stop splitting
 const MAX_ASPECT = 6;
 const MAX_ASPECT_DEVIATION = 0.05; // how far a leaf's aspect ratio may drift from its rounded aspect class
 const STOP_CHANCE_BASE = 0.03; // base chance of stopping the split
@@ -51,33 +57,46 @@ const DEFAULT_RULES = {
     stopChanceBase: STOP_CHANCE_BASE,
     stopChanceStep: STOP_CHANCE_STEP,
     palette: PALETTE_1,
-    blank: BLANK[0]
+    blank: BLANK[0],
+    glyphSet: 'main',
+    ink: INK[3]
 };
-const COARSE_RULES = {...DEFAULT_RULES, maxDepth: 3, stopChanceBase: 0.2, palette: PALETTE_2, blank: BLANK[1]};
-const FINE_RULES = {...DEFAULT_RULES, minSplitDepth: 8, maxDepth: 12, stopChanceBase: 0.01, stopChanceStep: 0.03, palette: PALETTE_3, blank: BLANK[2]};
+const COARSE_RULES = {
+    ...DEFAULT_RULES, 
+    maxDepth: 3,
+    minSplitDepth: 4, 
+    stopChanceBase: 0.2, 
+    palette: PALETTE_2, 
+    blank: BLANK[1],
+    ink: INK[1]
+};
+const FINE_RULES = {
+    ...DEFAULT_RULES, 
+    minSplitDepth: 8, 
+    maxDepth: 12, 
+    stopChanceBase: 0.01, 
+    stopChanceStep: 0.03, 
+    palette: PALETTE_3,
+    blank: BLANK[2], 
+    glyphSet: 'alt',
+    ink: INK[3]
+};
 
 
 
 // ---------- CONFIG: glyph sheets ----------
 
 const GLYPH_CONFIG = {
-    1: {
-        path: 'assets/G-1block-1.webp',
-        glyphsPerRow: 8,
-        glyphsPerColumn: 8
+    main: {
+        1: { path: 'assets/G-1block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 8 },
+        2: { path: 'assets/G-2block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 4 },
+        3: { path: 'assets/G-3block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 2 }
     },
-    2: {
-        path: 'assets/G-2block-1.webp',
-        glyphsPerRow: 8,
-        glyphsPerColumn: 4
+    alt: {
+        1: { path: 'assets/G-1block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 8 }
     },
-    3: {
-        path: 'assets/G-3block-1.webp',
-        glyphsPerRow: 8,
-        glyphsPerColumn: 2
-    }
 };
-let glyphSheets = {1: [], 2: [], 3: []}; // filled in setup(), one pool of glyph images per aspect class
+let glyphSheets = {}; // glyphSheets[setName][aspectClass] = array of glyph images
 
 
 // ---------- CONFIG: timing ----------
@@ -146,7 +165,6 @@ class Region {
             return true; // hard backstop, never split deeper than this regardless of aspect ratio
         }
 
-
         const aspect = max(this.unitsW, this.unitsH) / min(this.unitsW, this.unitsH);
 
         if (aspect > this.rules.maxAspect) {
@@ -177,7 +195,7 @@ class Region {
             //this.rectCol = color(random(PALETTE_ASPECT_RECT));
             this.isLeaf = true;
 
-            const pool = glyphSheets[this.aspectClass]; 
+            const pool = this.poolFor(this.aspectClass);
 
             if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
                 this.rectCol = color(random(this.rules.palette)); //assign a random color from the palette to the leaf region
@@ -213,8 +231,6 @@ class Region {
 
     renderBackground() {
         fill(this.rectCol);
-        // strokeWeight(THICKNESS);
-        // stroke(BORDER);
         noStroke();
         rect(this.x, this.y, this.w, this.h);
     }
@@ -240,11 +256,16 @@ class Region {
     }
 
     assignRandomGlyph() {
-        const pool = glyphSheets[this.aspectClass]; //get the pool of glyphs for the aspect class
+        const pool = this.poolFor(this.aspectClass); //get the pool of glyphs for the aspect class
 
         if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
             this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
         }
+    }
+
+    poolFor(aspectClass) {
+        const set = getInkedSet(this.rules.glyphSet, this.rules.ink);
+        return set ? set[aspectClass] : undefined; //return the pool of glyphs for the aspect class, or null if the set is not found
     }
 
     collectLeaves(list) {
@@ -299,6 +320,77 @@ class Zone {
     }
 }
 
+
+// P5 Core Functions
+
+async function setup() {
+    angleMode(DEGREES);
+    createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
+    //noLoop(); //stop the draw loop from running automatically
+     background(123);
+
+    for (const setName in GLYPH_CONFIG) {
+        glyphSheets[setName] = {};
+    
+        for (const aspectClass in GLYPH_CONFIG[setName]) {
+        const config = GLYPH_CONFIG[setName][aspectClass];
+        const sheet = await loadImage(config.path);
+        glyphSheets[setName][aspectClass] = [];
+
+        for (let i = 0; i < config.glyphsPerColumn; i++) {
+            for (let j = 0; j < config.glyphsPerRow; j++) {
+                let x = j * (sheet.width / config.glyphsPerRow);
+                let y = i * (sheet.height / config.glyphsPerColumn);
+                let w = sheet.width / config.glyphsPerRow;
+                let h = sheet.height / config.glyphsPerColumn;
+                glyphSheets[setName][aspectClass].push(sheet.get(x, y, w, h));
+                }
+            }
+        }
+    
+    }
+
+
+    buildZones(); //build the zones and their regions
+}
+
+function draw() {
+    
+    // Window Resizing
+    if (resizePending && millis() - resizeTimer > 200) {
+        onResize();
+        resizePending = false;
+    }
+   
+
+    if (revealedCount < leaves.length) {
+        if (lastRevealTime === null || millis() - lastRevealTime >= REVEAL_DELAY) {
+            revealedCount++;
+            lastRevealTime = millis();
+            leaves[revealedCount - 1].renderBackground(); //render the background of the next leaf region
+        }
+        return; //stop the draw loop if not all leaf regions have been revealed
+    }
+
+    if (glyphRevealCount < leaves.length) {
+        if (lastGlyphRevealTime === null || millis() - lastGlyphRevealTime >= GLYPH_REVEAL_DELAY) {
+            glyphRevealCount++;
+            lastGlyphRevealTime = millis();
+            leaves[glyphRevealCount - 1].renderGlyph(); //render the glyph of the next leaf region
+        }
+        return; //stop the draw loop if not all glyphs have been revealed
+    }
+    
+    if (millis() >= nextCycleTime) {
+        scheduleCycleBatch();
+    }
+
+    for (const leaf of leaves) {
+        leaf.updateCycle();
+    }
+}
+
+
 // Functions
 
 
@@ -335,67 +427,6 @@ function scheduleCycleBatch() {
     nextCycleTime = millis() + batchDuration + CYCLE_INTERVAL;
 }
 
-// P5 Core Functions
-
-async function setup() {
-    angleMode(DEGREES);
-    createCanvas(windowWidth, windowHeight); //create a canvas that fills the window
-    //noLoop(); //stop the draw loop from running automatically
-     background(123);
-
-    for (const aspectClass in GLYPH_CONFIG) {
-        const config = GLYPH_CONFIG[aspectClass];
-        const sheet = await loadImage(config.path);
-
-        for (let i = 0; i < config.glyphsPerColumn; i++) {
-            for (let j = 0; j < config.glyphsPerRow; j++) {
-                let x = j * (sheet.width / config.glyphsPerRow);
-                let y = i * (sheet.height / config.glyphsPerColumn);
-                let w = sheet.width / config.glyphsPerRow;
-                let h = sheet.height / config.glyphsPerColumn;
-                glyphSheets[aspectClass].push(sheet.get(x, y, w, h));
-            }
-        }
-    }
-
-    buildZones(); //build the zones and their regions
-}
-
-function draw() {
-    
-    // Window Resizing
-    if (resizePending && millis() - resizeTimer > 200) {
-        onResize();
-        resizePending = false;
-    }
-    // ---
-
-    if (revealedCount < leaves.length) {
-        if (lastRevealTime === null || millis() - lastRevealTime >= REVEAL_DELAY) {
-            revealedCount++;
-            lastRevealTime = millis();
-            leaves[revealedCount - 1].renderBackground(); //render the background of the next leaf region
-        }
-        return; //stop the draw loop if not all leaf regions have been revealed
-    }
-
-    if (glyphRevealCount < leaves.length) {
-        if (lastGlyphRevealTime === null || millis() - lastGlyphRevealTime >= GLYPH_REVEAL_DELAY) {
-            glyphRevealCount++;
-            lastGlyphRevealTime = millis();
-            leaves[glyphRevealCount - 1].renderGlyph(); //render the glyph of the next leaf region
-        }
-        return; //stop the draw loop if not all glyphs have been revealed
-    }
-    
-    if (millis() >= nextCycleTime) {
-        scheduleCycleBatch();
-    }
-
-    for (const leaf of leaves) {
-        leaf.updateCycle();
-    }
-}
 
 function buildZones() {
     UNIT_SIZE = width / UNITS_PER_ROW; //recalculate the size of each unit based on the canvas width and the number of units per row
@@ -423,6 +454,38 @@ function rebuildTree() {
     lastRevealTime = null;
     glyphRevealCount = 0;
     lastGlyphRevealTime = null;
+}
+
+function recolourGlyph(img, inkColour) {
+    const out = img.get(0, 0, img.width, img.height); 
+    const c = color(inkColour);
+    const r = red(c);
+    const g = green(c);
+    const b = blue(c);
+
+    out.loadPixels();
+    for (let i = 0; i < out.pixels.length; i += 4) {
+            out.pixels[i] = r;
+            out.pixels[i + 1] = g;
+            out.pixels[i + 2] = b;
+        }
+    out.updatePixels();
+    return out;
+}
+
+function getInkedSet(setName, ink) {
+    const raw = glyphSheets[setName];
+    if (!raw) {
+        return undefined;
+    }
+    const key = setName + '|' + ink;
+    if (!inkedSets[key]) {
+        inkedSets[key] = {};
+        for (const aspectClass in raw) {
+            inkedSets[key][aspectClass] = raw[aspectClass].map(g => recolourGlyph(g, ink));
+        }
+    }
+    return inkedSets[key];
 }
 
 function keyPressed() {
@@ -455,4 +518,3 @@ function mousePressed() {
 function onResize() {
   rebuildTree();
 }
-// ---
