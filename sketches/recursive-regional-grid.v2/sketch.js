@@ -154,7 +154,7 @@ const CYCLE_STAGGER_DELAY = 500; // delay in milliseconds between each leaf's re
 const CYCLE_WITHIN_LEAF_DELAY = 150; // delay in milliseconds between a leaf's background change and its glyph change
 const CYCLE_INTERVAL = 2500; // pause in milliseconds after a batch finishes before the next one is scheduled
 
-const REFRESH_INTERVAL = 5 * 6 * 1000; //  interval in milliseconds between automatic refreshes of the entire tree
+const REFRESH_INTERVAL = 10 * 6 * 1000; //  interval in milliseconds between automatic refreshes of the entire tree
 
 
 // ---------- STATE: changes while the sketch runs ----------
