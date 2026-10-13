@@ -399,6 +399,7 @@ async function setup() {
 
 
     buildZones(); //build the zones and their regions
+
 }
 
 function draw() {
@@ -582,6 +583,61 @@ function keyPressed() {
     if (key === 'r') {
         rebuildTree();
     }
+
+    if (key === 'i') {
+    const firstKey = Object.keys(inkedSets)[0];
+    const firstSet = inkedSets[firstKey];
+    const firstClass = Object.keys(firstSet)[0];
+    const sample = firstSet[firstClass][0];
+
+    console.log('glyph size:', sample.width, sample.height);
+    console.log('expected pixel array length:', sample.width * sample.height * 4);
+    console.log('actual pixel array length:', sample.pixels.length);
+    console.log('pixel density:', pixelDensity());
+    }
+
+    if (key === 'm') {
+    const largest = {};
+    for (const leaf of leaves) {
+        if (!leaf.acceptGlyph) continue;
+        const side = max(leaf.w, leaf.h);
+        largest[leaf.aspectClass] = max(largest[leaf.aspectClass] || 0, side);
+    }
+    console.log('largest drawn side in px, by aspect class:', largest, 'pixel density:', pixelDensity());
+    }
+
+    if (key === 'h') {
+    const bands = { small: 0, medium: 0, large: 0 };
+    for (const leaf of leaves) {
+        if (!leaf.acceptGlyph) continue;
+        const longSide = max(leaf.unitsW, leaf.unitsH);
+        if (longSide <= 2) bands.small++;
+        else if (longSide <= 4) bands.medium++;
+        else bands.large++;
+    }
+    console.log(bands);
+    }
+
+    if (key === 'x') {
+    const maxShort = {}; // largest short side in units, per aspect class
+    const saved = currentLayout;
+
+    for (const layout of LAYOUTS) {
+        currentLayout = layout;
+        for (let n = 0; n < 200; n++) {
+            buildZones();
+            for (const leaf of leaves) {
+                if (!leaf.acceptGlyph) continue; // leaves with no glyph are never drawn with one
+                const shortSide = min(leaf.unitsW, leaf.unitsH);
+                maxShort[leaf.aspectClass] = max(maxShort[leaf.aspectClass] || 0, shortSide);
+            }
+        }
+    }
+
+    currentLayout = saved;
+    console.log('largest short side in units, by aspect class:', maxShort);
+    rebuildTree(); // restore a normal, drawable sketch
+}
 
 }
 
