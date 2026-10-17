@@ -336,3 +336,31 @@ function checkSheetImage(sheetName, img) {
 
   return true;
 }
+
+function glyphsforPool(pool) {
+  // Return an array of glyphs that belong to the given pool ('small' or 'large').
+  return GLYPH_CATALOGUE.filter(g => SHEETS[g.sheet].pool === pool && !isTileable(g));
+}
+
+function tileGlyphs() {
+  // Return an array of glyphs that are tileable.
+  return GLYPH_CATALOGUE.filter(isTileable);
+}
+
+function tagCoverage() {
+  // Count how many glyphs carry each tag, split into small, large and texture.
+  const counts = {};
+  for (const tag of TAG_VOCAB) {
+    counts[tag] = { small: 0, large: 0, texture: 0 };
+  }
+
+  for (const g of GLYPH_CATALOGUE) {
+    const kind = isTileable(g) ? 'texture' : SHEETS[g.sheet].pool;
+    for (const tag of g.tags) {
+      counts[tag][kind]++;
+    }
+  }
+
+  console.table(counts);
+  return counts;
+}

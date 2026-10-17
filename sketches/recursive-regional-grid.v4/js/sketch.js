@@ -8,19 +8,19 @@ let resizePending = false;
 // ---------- CONFIG: appearance ----------
 
 const PALETTE_1= [
-    '#8ACB8B',
-    '#ACDAB9',
-    '#E9E684',
+    '#dce1dc',
+    '#e7f2ea',
+    '#f7f6e2',
 ];
 const PALETTE_2 = [
-    '#6184AF',
-    '#6BA8CD',
-    '#86E8FF'
+    '#6a809c',
+    '#6891ab',
+    '#8ca8ae'
 ];
 const PALETTE_3 = [
-    '#a98f78',
-    '#faa454',
-    '#e7d0ba',
+    '#eee9e5',
+    '#f6e9dd',
+    '#ede6e0',
 ];    
 const BLANK = [
     '#414147',
@@ -28,13 +28,15 @@ const BLANK = [
     '#808381'
 ];
 const INK = [
-    '#daffec',
-    '#323D66',
-    '#582860',
-    '#5C361C'   
+    '#eefcf5',
+    '#566498',
+    '#7e4588',
+    '#8b5029'   
 ]
 
 let inkedSets = {}; // cache: inkedSets['main|#ffffff'][aspectClass] = array of recoloured glyphs
+
+const SMALL_MAX_PX = 257; // maximum pixel size for a glyph to be considered "small"
 
 
 // ---------- CONFIG: grid and subdivision ----------
@@ -125,6 +127,8 @@ function layoutMixed(totalRows) {
 }
 
 const LAYOUTS = [layoutThreeColumns, layoutStacked, layoutMixed];
+const THEME_NAMES = ['body', 'botanical', 'symbols'];
+const ALLOW_REPEAT_THEMES = false; // if false, each theme can only be used once per sketch
 
 let currentLayout = LAYOUTS[0]; // default layout function
 
@@ -177,6 +181,8 @@ let sheetImages = {}; // sheetImages[sheetName] = the loaded image for that shee
 let sketchReady = false; // false until loading and preparation are both finished
 let loadFinishedTime = null; // timestamp when the loading finished, used to hold the loading screen for a minimum time
 let revealStartTime = null; // timestamp at which the leaf reveal is allowed to begin
+
+let inkBuffer;
 
 
 
@@ -245,21 +251,18 @@ class Region {
 
     subdivide() {
         if (this.shouldStopSplitting()) { //if the region should stop splitting, mark it as a leaf and assign a random color
-            //this.rectCol = color(random(PALETTE_ASPECT_RECT));
-            this.isLeaf = true;
+          
+            this.glyph = this.pickGlyph(); //pick a glyph for the leaf region
 
-            const pool = this.poolFor(this.aspectClass);
-
-            if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
+            if (this.glyph) {
                 this.rectCol = color(random(this.rules.palette)); //assign a random color from the palette to the leaf region
-                this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
             } else {
-                this.rectCol = color(this.rules.blank);
-                this.glyph = null; // don't assign a glyph if the region is not square
-                this.acceptGlyph = false;
+                this.rectCol = color(this.rules.blank); //assign a blank color to the leaf region if no glyph is available
+                this.acceptGlyph = false; //mark the leaf region as not accepting glyphs
             }
 
-            return;
+            return; //exit the function after assigning the color and glyph
+
         }
 
         this.isLeaf = false;
@@ -293,27 +296,45 @@ class Region {
     }
 
     renderGlyph() {
-        if (this.glyph) {
-            const g = this.glyph;
-
-            if (this.orientation === 'wide') {
-                push();
-                translate(this.x + this.w/2, this.y + this.h/2);
-                rotate(90);
-                image(g, -this.h/2, -this.w/2, this.h, this.w); //draw the glyph in the region
-                pop();
-            } else {
-                image(g, this.x, this.y, this.w, this.h); //draw the glyph in the region
-            }
+        if (!this.glyph){
+            return; //do nothing if there is no glyph assigned to the region
         }
+
+        if (this.orientation === 'square') {
+            drawGlyph(this.glyph, this.x, this.y, this.w, this.h, this.rules.ink); //draw the glyph in the region with the specified ink color
+            return; //exit the function after drawing the glyph
+        }
+
+        // 
+        const n = this.aspectClass;
+        const tileW = this.orientation === 'wide' ? this.w / n : this.w;
+        const tileH = this.orientation === 'tall' ? this.h / n : this.h;
+
+        // Non-square: repeat the texture aspectClass times along the long side
+        for (let i = 0; i < n; i++) {
+            const tx = this.x + (this.orientation === 'wide' ? i * tileW : 0);
+            const ty = this.y + (this.orientation === 'tall' ? i * tileH : 0);
+            drawGlyph(this.glyph, tx, ty, tileW, tileH, this.rules.ink); //draw the glyph in each tile of the region with the specified ink color
+        }
+
     }
 
     assignRandomGlyph() {
-        const pool = this.poolFor(this.aspectClass); //get the pool of glyphs for the aspect class
-
-        if (pool && pool.length > 0) { //check if there are glyphs available for the aspect class
-            this.glyph = random(pool); //assign a random glyph from the pool to the leaf region
+        const g = this.pickGlyph();
+        if (g) {
+            this.glyph = g;
         }
+    }
+
+    pickGlyph() {
+        let pool;
+        if (this.orientation === 'square') {
+            const poolName = this.h < SMALL_MAX_PX ? 'small' : 'large';
+            pool = glyphsforPool(poolName);
+        } else {
+            pool = tileGlyphs();
+        }
+        return pool.length > 0 ? random(pool) : null; //return a random glyph from the pool, or null if the pool is empty
     }
 
     poolFor(aspectClass) {
@@ -379,47 +400,27 @@ class Zone {
 function setup() {
     angleMode(DEGREES);
     createCanvas(windowWidth, windowHeight);
+    inkBuffer = createGraphics(256, 256); // create a small off-screen graphics buffer for recoloring glyphs
     background(30);
 
-    // One loader item per unique image path in GLYPH_CONFIG
-    const paths = new Set();
-    for (const setName in GLYPH_CONFIG) {
-        for (const aspectClass in GLYPH_CONFIG[setName]) {
-            paths.add(GLYPH_CONFIG[setName][aspectClass].path);
-        }
-    }
-    const items = [...paths].map(path => ({ key: path, path: path }));
+    checkCatalogue(); // check if the catalogue is available and load it if necessary
+
+
+    const items = Object.keys(SHEETS).map(name => ({
+        key: name,
+        path: `assets/${name}.webp`
+    }));
 
     loadAll(items).then(images => {
         sheetImages = images;
+        console.log('sheets loaded:', Object.keys(sheetImages).length);
+        for (const name in images) {
+            checkSheetImage(name, images[name]);
+        }
         if (loader.ready) {
             loadFinishedTime = millis();
         }
     });
-}
-
-function prepareSketch() {
-    for (const setName in GLYPH_CONFIG) {
-        glyphSheets[setName] = {};
-
-        for (const aspectClass in GLYPH_CONFIG[setName]) {
-            const config = GLYPH_CONFIG[setName][aspectClass];
-            const sheet = sheetImages[config.path]; // was: await loadImage(config.path)
-            glyphSheets[setName][aspectClass] = [];
-
-            for (let i = 0; i < config.glyphsPerColumn; i++) {
-                for (let j = 0; j < config.glyphsPerRow; j++) {
-                    let x = j * (sheet.width / config.glyphsPerRow);
-                    let y = i * (sheet.height / config.glyphsPerColumn);
-                    let w = sheet.width / config.glyphsPerRow;
-                    let h = sheet.height / config.glyphsPerColumn;
-                    glyphSheets[setName][aspectClass].push(sheet.get(x, y, w, h));
-                }
-            }
-        }
-    }
-
-    buildZones();
 }
 
 function draw() {
@@ -517,10 +518,42 @@ function drawLoadingScreen() {
     rect(barX, barY, barWidth * progress, barHeight);
 }
 
-
-
-
 // ---
+
+function prepareSketch() {
+    buildZones();
+}
+
+function drawGlyph(glyph, x, y, w, h, inkColour) {
+    const r = glyphRect(glyph);
+    const img = sheetImages[glyph.sheet];
+
+    // Draw the glyph onto the off-screen buffer with the specified dimensions
+    const bw = round(w);
+    const bh = round(h);
+
+    if (inkBuffer.width !== bw || inkBuffer.height !== bh) {
+        inkBuffer.resizeCanvas(bw, bh);
+    }
+
+    inkBuffer.drawingContext.clearRect(0, 0, inkBuffer.width, inkBuffer.height);
+
+    // 1. Draw the glyph onto the off-screen buffer
+    inkBuffer.image(img, 0, 0, bw, bh, r.x, r.y, r.w, r.h);
+
+    // 2. keep the alpha channel and recolor the glyph
+    inkBuffer.drawingContext.globalCompositeOperation = 'source-in';
+    inkBuffer.noStroke();
+    inkBuffer.fill(inkColour);
+    inkBuffer.rect(0, 0, bw, bh);
+
+    // 3. Draw the recolored glyph from the off-screen buffer onto the main canvas
+    inkBuffer.drawingContext.globalCompositeOperation = 'source-over';
+
+    // 4. Draw the recolored glyph onto the main canvas
+    image(inkBuffer, x, y, w, h);
+}
+
 
 function findLeafAt(px,py) {
     for (const leaf of leaves) {
@@ -654,60 +687,30 @@ function keyPressed() {
         rebuildTree();
     }
 
-    if (key === 'i') {
-    const firstKey = Object.keys(inkedSets)[0];
-    const firstSet = inkedSets[firstKey];
-    const firstClass = Object.keys(firstSet)[0];
-    const sample = firstSet[firstClass][0];
-
-    console.log('glyph size:', sample.width, sample.height);
-    console.log('expected pixel array length:', sample.width * sample.height * 4);
-    console.log('actual pixel array length:', sample.pixels.length);
-    console.log('pixel density:', pixelDensity());
+    if (key === 't') {
+        const g = random(GLYPH_CATALOGUE);
+        drawGlyph(g, mouseX, mouseY, 200, 200,random(INK));
+        console.log(g.name, g.sheet, g.tags);
     }
-
-    if (key === 'm') {
-    const largest = {};
-    for (const leaf of leaves) {
-        if (!leaf.acceptGlyph) continue;
-        const side = max(leaf.w, leaf.h);
-        largest[leaf.aspectClass] = max(largest[leaf.aspectClass] || 0, side);
-    }
-    console.log('largest drawn side in px, by aspect class:', largest, 'pixel density:', pixelDensity());
-    }
-
-    if (key === 'h') {
-    const bands = { small: 0, medium: 0, large: 0 };
-    for (const leaf of leaves) {
-        if (!leaf.acceptGlyph) continue;
-        const longSide = max(leaf.unitsW, leaf.unitsH);
-        if (longSide <= 2) bands.small++;
-        else if (longSide <= 4) bands.medium++;
-        else bands.large++;
-    }
-    console.log(bands);
-    }
-
-    if (key === 'x') {
-    const maxShort = {}; // largest short side in units, per aspect class
-    const saved = currentLayout;
-
-    for (const layout of LAYOUTS) {
-        currentLayout = layout;
-        for (let n = 0; n < 200; n++) {
-            buildZones();
-            for (const leaf of leaves) {
-                if (!leaf.acceptGlyph) continue; // leaves with no glyph are never drawn with one
-                const shortSide = min(leaf.unitsW, leaf.unitsH);
-                maxShort[leaf.aspectClass] = max(maxShort[leaf.aspectClass] || 0, shortSide);
-            }
+    
+    if (key === 'n') {
+        const rows = [];
+        for (const leaf of leaves) {
+            if (leaf.unitsW === leaf.unitsH) continue; // exactly square, never stretched
+            const ratio = max(leaf.unitsW, leaf.unitsH) / min(leaf.unitsW, leaf.unitsH);
+            rows.push({
+                units: leaf.unitsW + ' x ' + leaf.unitsH,
+                ratio: round(ratio * 100) / 100,
+                aspectClass: leaf.aspectClass,
+                stretch: round(ratio / leaf.aspectClass * 100) / 100,
+                depth: leaf.depth,
+                maxDepth: leaf.rules.maxDepth
+            });
         }
+        rows.sort((a, b) => abs(b.stretch - 1) - abs(a.stretch - 1));
+        console.log(rows.length + ' non-square leaves');
+        console.table(rows.slice(0, 15));
     }
-
-    currentLayout = saved;
-    console.log('largest short side in units, by aspect class:', maxShort);
-    rebuildTree(); // restore a normal, drawable sketch
-}
 
 }
 
