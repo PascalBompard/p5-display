@@ -128,7 +128,7 @@ function layoutMixed(totalRows) {
 
 const LAYOUTS = [layoutThreeColumns, layoutStacked, layoutMixed];
 const THEME_NAMES = ['body', 'botanical', 'symbols'];
-const ALLOW_REPEAT_THEMES = false; // if false, each theme can only be used once per sketch
+const ALLOW_REPEAT_THEMES = true; // if false, each theme can only be used once per sketch
 
 let currentLayout = LAYOUTS[0]; // default layout function
 
@@ -330,7 +330,7 @@ class Region {
         let pool;
         if (this.orientation === 'square') {
             const poolName = this.h < SMALL_MAX_PX ? 'small' : 'large';
-            pool = glyphsforPool(poolName);
+            pool = glyphsforPool(poolName, this.rules.theme);
         } else {
             pool = tileGlyphs();
         }
@@ -520,6 +520,19 @@ function drawLoadingScreen() {
 
 // ---
 
+function pickThemes(count) {
+    const themes = [];
+    
+    if (ALLOW_REPEAT_THEMES) {
+        for (let i = 0; i < count; i++) {
+            themes.push(random(THEME_NAMES));
+        }
+        return themes;
+    }
+
+    return shuffle(THEME_NAMES).slice(0, count); // pick a random subset of themes without repetition
+}
+
 function prepareSketch() {
     buildZones();
 }
@@ -586,9 +599,18 @@ function buildZones() {
     const totalRows = ceil(height / UNIT_SIZE); //calculate the number of units that can fit in the height of the canvas
 
     zones = [];
-    for (const z of currentLayout(totalRows)) {
-        zones.push(new Zone(z.col, z.row, z.cols, z.rows, z.rules));
-    }
+    const layout = currentLayout(totalRows); //get the current layout function and call it with the total number of rows
+    const themes = pickThemes(layout.length); //pick a random theme for each zone in the layout
+
+    for (let i = 0; i < layout.length; i++) {
+        const z = layout[i];
+        const rules = { ...z.rules, theme: themes[i] }; //merge the rules from the layout with the randomly picked theme
+        zones.push(new Zone(z.col, z.row, z.cols, z.rows, rules)); //create a new Zone object for each zone in the layout and add it to the zones array
+    } 
+
+    console.log('zone themes:', themes.join(', '));
+
+
 
     leaves = []; //clear the leaves array
     for (const zone of zones) {

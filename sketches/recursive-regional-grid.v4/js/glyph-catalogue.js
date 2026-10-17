@@ -337,9 +337,12 @@ function checkSheetImage(sheetName, img) {
   return true;
 }
 
-function glyphsforPool(pool) {
-  // Return an array of glyphs that belong to the given pool ('small' or 'large').
-  return GLYPH_CATALOGUE.filter(g => SHEETS[g.sheet].pool === pool && !isTileable(g));
+function glyphsforPool(pool,theme) {
+  // Return the non-tileable glyphs in the given pool ('small' or 'large') that belong to the given theme.
+  return GLYPH_CATALOGUE.filter( g => {
+    const sheet = SHEETS[g.sheet];
+    return sheet.pool === pool && sheet.theme === theme && !isTileable(g);
+  });
 }
 
 function tileGlyphs() {
