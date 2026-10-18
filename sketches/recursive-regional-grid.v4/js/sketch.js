@@ -8,30 +8,30 @@ let resizePending = false;
 // ---------- CONFIG: appearance ----------
 
 const PALETTE_1= [
-    '#dce1dc',
-    '#e7f2ea',
-    '#f7f6e2',
+    '#eceeec',
+    '#f2f3f2',
+    '#f6f9ef',
 ];
 const PALETTE_2 = [
-    '#6a809c',
-    '#6891ab',
-    '#8ca8ae'
+    '#f8f9fa',
+    '#f4f7f9',
+    '#f3f8f9'
 ];
 const PALETTE_3 = [
-    '#eee9e5',
-    '#f6e9dd',
-    '#ede6e0',
+    '#f2efed',
+    '#f6f1ed',
+    '#f3f1ef',
 ];    
 const BLANK = [
-    '#414147',
-    '#535760',
-    '#808381'
+    '#f2f3f2',
+    '#eef4f8',
+    '#f3f1ef'
 ];
 const INK = [
-    '#eefcf5',
+    '#b2c6bc',
     '#566498',
-    '#7e4588',
-    '#8b5029'   
+    '#6d5a71',
+    '#64554a'   
 ]
 
 let inkedSets = {}; // cache: inkedSets['main|#ffffff'][aspectClass] = array of recoloured glyphs
@@ -127,10 +127,17 @@ function layoutMixed(totalRows) {
 }
 
 const LAYOUTS = [layoutThreeColumns, layoutStacked, layoutMixed];
-const THEME_NAMES = ['body', 'botanical', 'symbols'];
-const ALLOW_REPEAT_THEMES = true; // if false, each theme can only be used once per sketch
-
 let currentLayout = LAYOUTS[0]; // default layout function
+
+// ---------- CONFIG: themes ----------
+
+const THEME_NAMES = ['body', 'botanical', 'symbols'];
+const ALLOW_REPEAT_THEMES = false; // if false, each theme can only be used once per sketch
+
+// ---------- CONFIG: blank leaves ----------
+
+const BLANK_MIN = 0.2 
+const BLANK_MAX = 0.5
 
 // ---------- CONFIG: glyph sheets ----------
 
@@ -320,21 +327,50 @@ class Region {
     }
 
     assignRandomGlyph() {
-        const g = this.pickGlyph();
+        const old = this.glyph;
+        const g = this.pickRelatedGlyph();
         if (g) {
             this.glyph = g;
         }
     }
 
-    pickGlyph() {
-        let pool;
+    makeBlank() {
+        this.glyph = null;
+        this.rectCol = color(this.rules.blank);
+        this.acceptGlyph = false;
+
+    }
+
+    candidatePool() {
         if (this.orientation === 'square') {
             const poolName = this.h < SMALL_MAX_PX ? 'small' : 'large';
-            pool = glyphsforPool(poolName, this.rules.theme);
-        } else {
-            pool = tileGlyphs();
+            return  glyphsforPool(poolName, this.rules.theme);
         }
-        return pool.length > 0 ? random(pool) : null; //return a random glyph from the pool, or null if the pool is empty
+        return tileGlyphs();
+    }
+
+    pickGlyph() {
+        const pool = this.candidatePool();
+        return pool.length > 0 ? random(pool) : null;
+    }
+
+    pickRelatedGlyph() {
+        if (!this.glyph) {
+            return this.pickGlyph(); 
+        }
+
+        const others = this.candidatePool().filter(g => g !== this.glyph);
+        const related = others.filter(g => g.tags.some(t => this.glyph.tags.includes(t)));
+        
+        if (related.length > 0) {
+            return random(related);
+        }
+        
+        if (others.length > 0) {
+            return random(others);            
+        }
+        
+        return  this.glyph;
     }
 
     poolFor(aspectClass) {
@@ -387,8 +423,23 @@ class Zone {
         this.rules = rules;
         
         this.root = new Region(this.x, this.y, this.w, this.h, 0, this.rules);
+        this.applyBlanks();
     }
 
+    applyBlanks() {
+        const zoneLeaves = [];
+        this.collectLeaves(zoneLeaves);
+
+        const fraction = random(BLANK_MIN,BLANK_MAX);
+        const count = round(zoneLeaves.length * fraction);
+
+        const chosen = shuffle(zoneLeaves).slice(0,count);
+        for (const leaf of chosen) {
+            leaf.makeBlank();            
+        }
+    }
+    
+    
     collectLeaves(list) {
         this.root.collectLeaves(list);
     }
@@ -401,7 +452,7 @@ function setup() {
     angleMode(DEGREES);
     createCanvas(windowWidth, windowHeight);
     inkBuffer = createGraphics(256, 256); // create a small off-screen graphics buffer for recoloring glyphs
-    background(30);
+    background(230);
 
     checkCatalogue(); // check if the catalogue is available and load it if necessary
 
