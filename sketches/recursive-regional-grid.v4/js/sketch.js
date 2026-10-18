@@ -31,7 +31,7 @@ const INK = [
     '#b2c6bc',
     '#566498',
     '#6d5a71',
-    '#64554a'   
+    '#ed553a'   
 ]
 
 let inkedSets = {}; // cache: inkedSets['main|#ffffff'][aspectClass] = array of recoloured glyphs
