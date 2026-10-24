@@ -32,8 +32,6 @@ const COLOURWAY_RED = {palette: PALETTE_1, blank: BLANK[0], ink: INK[3]};
 const COLOURWAY_SAGE = {palette: PALETTE_2, blank: BLANK[1], ink: INK[0]};
 const COLOURWAY_PLUM = {palette: PALETTE_3, blank: BLANK[2], ink: INK[2]};
 
-let inkedSets = {}; // cache: inkedSets['main|#ffffff'][aspectClass] = array of recoloured glyphs
-
 const SMALL_MAX_PX = 257; // maximum pixel size for a glyph to be considered "small"
 
 
@@ -56,15 +54,14 @@ const DEFAULT_RULES = {
     maxAspectDeviation: MAX_ASPECT_DEVIATION,
     stopChanceBase: STOP_CHANCE_BASE,
     stopChanceStep: STOP_CHANCE_STEP,
-    ...COLOURWAY_RED,
-    glyphSet: 'main',
+    ...COLOURWAY_RED
 };
 const COARSE_RULES = {
     ...DEFAULT_RULES, 
     maxDepth: 3,
     minSplitDepth: 4, 
     stopChanceBase: 0.2, 
-    ...COLOURWAY_SAGE,
+    ...COLOURWAY_SAGE
 };
 const FINE_RULES = {
     ...DEFAULT_RULES, 
@@ -72,12 +69,8 @@ const FINE_RULES = {
     maxDepth: 12, 
     stopChanceBase: 0.01, 
     stopChanceStep: 0.03, 
-    ...COLOURWAY_PLUM,
-    glyphSet: 'alt',
-    
+    ...COLOURWAY_PLUM    
 };
-
-const ALL_RULES = [DEFAULT_RULES, COARSE_RULES, FINE_RULES];
 
 // ---------- CONFIG: layouts ----------
 
@@ -131,20 +124,6 @@ const ALLOW_REPEAT_THEMES = false; // if false, each theme can only be used once
 
 const BLANK_MIN = 0.2 
 const BLANK_MAX = 0.5
-
-// ---------- CONFIG: glyph sheets ----------
-
-const GLYPH_CONFIG = {
-    main: {
-        1: { path: 'assets/G-1block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 8 },
-        2: { path: 'assets/G-2block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 4 },
-        3: { path: 'assets/G-3block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 2 }
-    },
-    alt: {
-        1: { path: 'assets/G-1block-1.webp', glyphsPerRow: 8, glyphsPerColumn: 8 }
-    },
-};
-let glyphSheets = {}; // glyphSheets[setName][aspectClass] = array of glyph images
 
 
 // ---------- CONFIG: timing ----------
@@ -218,7 +197,6 @@ class Region {
 
         this.children = [];
         this.isLeaf = true;
-        this.col = null;
         this.bgChangeTime = null;
         this.glyphChangeTime = null;
         this.acceptGlyph = true; 
@@ -323,11 +301,9 @@ class Region {
             const ty = this.y + (this.orientation === 'tall' ? i * tileH : 0);
             drawGlyph(this.glyph, tx, ty, tileW, tileH, this.rules.ink); //draw the glyph in each tile of the region with the specified ink color
         }
-
     }
 
     assignRandomGlyph() {
-        const old = this.glyph;
         const g = this.pickRelatedGlyph();
         if (g) {
             this.glyph = g;
@@ -338,7 +314,6 @@ class Region {
         this.glyph = null;
         this.rectCol = color(this.rules.blank);
         this.acceptGlyph = false;
-
     }
 
     candidatePool() {
@@ -371,11 +346,6 @@ class Region {
         }
         
         return  this.glyph;
-    }
-
-    poolFor(aspectClass) {
-        const set = getInkedSet(this.rules.glyphSet, this.rules.ink);
-        return set ? set[aspectClass] : undefined; //return the pool of glyphs for the aspect class, or null if the set is not found
     }
 
     collectLeaves(list) {
@@ -812,52 +782,3 @@ function keyPressed() {
     }
 
 }
-
-// ---------- HOLDING ----------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function recolourGlyph(img, inkColour) {
-    const out = img.get(0, 0, img.width, img.height); 
-    const c = color(inkColour);
-    const r = red(c);
-    const g = green(c);
-    const b = blue(c);
-
-    out.loadPixels();
-    for (let i = 0; i < out.pixels.length; i += 4) {
-            out.pixels[i] = r;
-            out.pixels[i + 1] = g;
-            out.pixels[i + 2] = b;
-        }
-    out.updatePixels();
-    return out;
-}
-
-function getInkedSet(setName, ink) {
-    const raw = glyphSheets[setName];
-    if (!raw) {
-        return undefined;
-    }
-    const key = setName + '|' + ink;
-    if (!inkedSets[key]) {
-        inkedSets[key] = {};
-        for (const aspectClass in raw) {
-            inkedSets[key][aspectClass] = raw[aspectClass].map(g => recolourGlyph(g, ink));
-        }
-    }
-    return inkedSets[key];
-}
-
