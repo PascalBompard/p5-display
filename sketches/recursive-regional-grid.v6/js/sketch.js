@@ -15,22 +15,51 @@ const PALETTE_3 = [
     '#f6f1ed',
     '#f3f1ef',
 ];    
+const PALETTE_4 = [
+    '#f7f5f5',
+    '#f5f3f4',
+    '#f0edee'
+];
+const PALETTE_5 = [
+    '#f1eff1',
+    '#f7f5f7',
+    '#f9f6fa'
+];
+const PALETTE_6 = [
+    '#f0eff4',
+    '#f8f7fa',
+    '#f5f5f8'
+];
 const BLANK = [
     '#f2f3f2',
     '#eef4f8',
-    '#f3f1ef'
+    '#f3f1ef',
+    '#ede8ed',
+    '#e5e0e5',
+    '#e7e4ee'
 ];
 const INK = [
     '#b2c6bc',
     '#566498',
     '#6d5a71',
-    '#ed553a'   
+    '#ed553a',
+    '#dd4d73',
+    '#728abe',
+    '#4d8b5c'
 ];
+
 
 // A colourway bundles the colours that always travel together in one zone.
 const COLOURWAY_RED = {palette: PALETTE_1, blank: BLANK[0], ink: INK[3]};
 const COLOURWAY_SAGE = {palette: PALETTE_2, blank: BLANK[1], ink: INK[0]};
 const COLOURWAY_PLUM = {palette: PALETTE_3, blank: BLANK[2], ink: INK[2]};
+const COLOURWAY_INDIGO = {palette: PALETTE_4, blank: BLANK[3], ink: INK[1]};
+const COLOURWAY_CORAL = {palette: PALETTE_5, blank: BLANK[4], ink: INK[4]};
+const COLOURWAY_JADE = {palette: PALETTE_6, blank: BLANK[5], ink: INK[6]};
+
+const COLOURWAYS = [
+    COLOURWAY_RED, COLOURWAY_SAGE, COLOURWAY_PLUM, COLOURWAY_INDIGO, COLOURWAY_CORAL, COLOURWAY_JADE
+];
 
 const SMALL_MAX_PX = 257; // maximum pixel size for a glyph to be considered "small"
 
@@ -74,6 +103,26 @@ const FINE_RULES = {
 
 // ---------- CONFIG: layouts ----------
 
+
+
+// Splits `total` units into `parts` pieces, each at least `minSize`.
+// The pieces always add up to `total`.
+function splitSpan(total, parts, minSize) {
+    const sizes = new Array(parts).fill(minSize); // everyone gets the minimum first
+    let spare = total - minSize * parts;          // what is left to hand out
+
+    if (spare < 0) {
+        console.warn('splitSpan: cannot fit', parts, 'pieces of at least', minSize, 'into', total);
+        return sizes;
+    }
+
+    while (spare > 0) {
+        sizes[floor(random(parts))]++;            // give one unit to a random piece
+        spare--;
+    }
+    return sizes;
+}
+
 // Each entry describes one zone, measured in grid units.
 // col and row are the top left corner, cols and rows are the size.
 
@@ -112,12 +161,72 @@ function layoutMixed(totalRows) {
     ];
 }
 
-const LAYOUTS = [layoutThreeColumns, layoutStacked, layoutMixed];
-let currentLayout = LAYOUTS[0]; // default layout function
+function layoutLattice(totalRows) {
+    const colSizes = splitSpan(UNITS_PER_ROW, 3, 3); // three column widths
+    const rowSizes = splitSpan(totalRows, 2, 3);     // two row heights
+    const densities = [FINE_RULES, COARSE_RULES, DEFAULT_RULES];
+
+    const result = [];
+    let row = 0;                                     // top edge of the current row
+    for (let r = 0; r < rowSizes.length; r++) {
+        let col = 0;                                 // left edge, restarts for each row
+        for (let c = 0; c < colSizes.length; c++) {
+            result.push({
+                col: col,
+                row: row,
+                cols: colSizes[c],
+                rows: rowSizes[r],
+                rules: densities[(r + c) % 3]
+            });
+            col += colSizes[c];                      // step right by this zone's width
+        }
+        row += rowSizes[r];                          // step down by this row's height
+    }
+    return result;
+}
+
+function layoutBrokenColumns(totalRows) {
+    const colSizes = splitSpan(UNITS_PER_ROW, 3, 4);  // three columns, each at least 4 wide
+    const densities = [FINE_RULES, COARSE_RULES, DEFAULT_RULES];
+
+    const result = [];
+    let col = 0;                                      // left edge of the current column
+    for (let c = 0; c < colSizes.length; c++) {
+        const pieces = floor(random(1, 3));           // 1 or 2 zones in this column
+        const rowSizes = splitSpan(totalRows, pieces, 3); // this column's own row cuts
+
+        let row = 0;                                  // top edge, restarts for each column
+        for (let r = 0; r < rowSizes.length; r++) {
+            result.push({
+                col: col,
+                row: row,
+                cols: colSizes[c],
+                rows: rowSizes[r],
+                rules: random(densities)
+            });
+            row += rowSizes[r];
+        }
+        col += colSizes[c];
+    }
+    return result;
+}
+
+function checkLayout(layout, totalRows) {
+    const area = layout.reduce((sum, z) => sum + z.cols * z.rows, 0);
+    const expected = UNITS_PER_ROW * totalRows;
+    if (area !== expected) {
+        console.warn('Layout area is', area, 'but should be', expected);
+    }
+}
+
+const LAYOUTS = [layoutThreeColumns, layoutStacked, layoutMixed, layoutLattice, layoutBrokenColumns];
+let currentLayout = LAYOUTS[2]; // default layout function
+
+
 
 // ---------- CONFIG: themes ----------
 
-const THEME_NAMES = ['body', 'botanical', 'symbols'];
+const THEME_NAMES = ['body', 'botanical', 'symbols', 'arch', 'domestic', 'time'];
 const ALLOW_REPEAT_THEMES = false; // if false, each theme can only be used once per sketch
 
 // ---------- CONFIG: blank leaves ----------
@@ -605,7 +714,15 @@ function prepareSketch() {
 
 // ---------- BUILDING ----------
 
+function pickColourways(count) {
+    return shuffle(COLOURWAYS).slice(0, count);
+}
+
 function pickThemes(count) {
+    if (!ALLOW_REPEAT_THEMES && count > THEME_NAMES.length) {
+        console.warn('Layout has', count, 'zones but only', THEME_NAMES.length, 'themes');
+    }
+
     const themes = [];
     
     if (ALLOW_REPEAT_THEMES) {
@@ -625,10 +742,11 @@ function buildZones() {
     zones = [];
     const layout = currentLayout(totalRows); //get the current layout function and call it with the total number of rows
     const themes = pickThemes(layout.length); //pick a random theme for each zone in the layout
+    const colourways = pickColourways(layout.length);
 
     for (let i = 0; i < layout.length; i++) {
         const z = layout[i];
-        const rules = { ...z.rules, theme: themes[i] }; //merge the rules from the layout with the randomly picked theme
+        const rules = { ...z.rules, ...colourways[i], theme: themes[i] }; //merge the rules from the layout with the randomly picked theme
         zones.push(new Zone(z.col, z.row, z.cols, z.rows, rules)); //create a new Zone object for each zone in the layout and add it to the zones array
     } 
 
@@ -748,6 +866,16 @@ function keyPressed() {
         rebuildTree();
     }
 
+    if (key === '4') {
+        currentLayout = layoutLattice;
+        rebuildTree();
+    }
+
+    if (key === '5') {
+        currentLayout = layoutBrokenColumns;
+        rebuildTree();
+    }
+
     if (key === 's') {
       saveCanvas("canvas", "png");
     } 
@@ -760,6 +888,10 @@ function keyPressed() {
         const g = random(GLYPH_CATALOGUE);
         drawGlyph(g, mouseX, mouseY, 200, 200,random(INK));
         console.log(g.name, g.sheet, g.tags);
+    }
+
+    if (key === 'p') {
+    checkThemePools();
     }
     
     if (key === 'n') {
@@ -781,4 +913,15 @@ function keyPressed() {
         console.table(rows.slice(0, 15));
     }
 
+}
+
+// ---------- HELPERS ----------
+
+function checkThemePools() {
+    const rows = THEME_NAMES.map(theme => ({
+        theme: theme,
+        small: glyphsforPool('small', theme).length,
+        large: glyphsforPool('large', theme).length
+    }));
+    console.table(rows);
 }
